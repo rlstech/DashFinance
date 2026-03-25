@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.env
+
+# Cache e dados gerados
+cache.json
+data_ap.json
+data_receitas.json
+
+# Imagens pesadas (opcional — remova esta linha se quiser versionar)
+*.jpg
+*.jpeg
+*.png
+
+# Editor
+.vscode/
+.idea/
+
+# Claude Code (metadados locais)
+.claude/
