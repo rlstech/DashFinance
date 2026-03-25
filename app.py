@@ -5,7 +5,7 @@ import json, os
 
 app = Flask(__name__)
 
-CACHE_FILE = os.path.join(os.path.dirname(__file__), 'cache.json')
+CACHE_FILE = os.environ.get('CACHE_FILE', os.path.join(os.path.dirname(__file__), 'cache.json'))
 
 # ─────────────────────────────────
 # CACHE CENTRALIZADO

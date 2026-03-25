@@ -19,8 +19,9 @@ services:
       - DB_NAME=uau
       - DB_USER=claude_readonly
       - DB_PASS=ClaudeReadOnly2024!
+      - CACHE_FILE=/cache/cache.json
     volumes:
-      - dashfinance_cache:/app
+      - dashfinance_cache:/cache
     networks:
       - network_public
 
