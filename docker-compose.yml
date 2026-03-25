@@ -9,10 +9,10 @@ services:
         condition: on-failure
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.dashfinance.rule=Host(`dash.railton.eu.org`)"
-        - "traefik.http.routers.dashfinance.entrypoints=websecure"
-        - "traefik.http.routers.dashfinance.tls.certresolver=letsencryptresolver"
-        - "traefik.http.services.dashfinance.loadbalancer.server.port=5000"
+        - "traefik.http.routers.uaudash.rule=Host(`dash.railton.eu.org`)"
+        - "traefik.http.routers.uaudash.entrypoints=websecure"
+        - "traefik.http.routers.uaudash.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.uaudash.loadbalancer.server.port=5000"
     environment:
       - DB_SERVER=192.168.1.8\SQLEXPRESS
       - DB_PORT=62311
