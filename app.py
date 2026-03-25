@@ -30,18 +30,18 @@ def _load_cache():
 def _startup_sync():
     """Busca todos os dados do banco se o cache estiver vazio."""
     if not _cache['ap'] and not _cache['receitas']:
-        de, ate = '2020-01-01', '2030-12-31'
-        _cache['ap']          = get_ap(de, ate)
-        _cache['receitas']    = get_receitas(de, ate)
-        _cache['saldo_banco'] = get_saldo_banco(de, ate)
-        _cache['de']          = de
-        _cache['ate']         = ate
-        _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
         try:
+            de, ate = '2020-01-01', '2030-12-31'
+            _cache['ap']          = get_ap(de, ate)
+            _cache['receitas']    = get_receitas(de, ate)
+            _cache['saldo_banco'] = get_saldo_banco(de, ate)
+            _cache['de']          = de
+            _cache['ate']         = ate
+            _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
             with open(CACHE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(_cache, f, ensure_ascii=False)
         except Exception:
-            pass
+            pass  # DB inacessível (ex: VPS sem acesso à rede interna); app inicia sem dados
 
 _load_cache()
 _startup_sync()
