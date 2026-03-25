@@ -14,7 +14,7 @@ services:
         - "traefik.http.routers.uaudash.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.uaudash.loadbalancer.server.port=5000"
     environment:
-      - DB_SERVER=192.168.1.8\SQLEXPRESS
+      - DB_SERVER=cloudflared
       - DB_PORT=62311
       - DB_NAME=uau
       - DB_USER=claude_readonly
@@ -24,6 +24,17 @@ services:
       - dashfinance_cache:/cache
     networks:
       - network_public
+      - network_internal
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: access tcp --hostname sql.railton.eu.org --url 0.0.0.0:62311
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    networks:
+      - network_internal
 
 volumes:
   dashfinance_cache:
@@ -31,3 +42,5 @@ volumes:
 networks:
   network_public:
     external: true
+  network_internal:
+    driver: overlay
