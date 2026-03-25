@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "portainer": {
+      "command": "wsl",
+      "args": [
+        "-d", "Ubuntu-24.04",
+        "--",
+        "/usr/local/bin/portainer-mcp",
+        "-server", "portainer.railton.eu.org:443",
+        "-token", "ptr_h+mdQitM6UVFa7YO6IYeCqSd/nKQmN/5Lwppm0LxrRg=",
+        "-disable-version-check"
+      ]
+    }
+  }
+}

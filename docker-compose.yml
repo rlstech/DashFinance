@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  app:
+    image: ghcr.io/rlstech/dashfinance:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.dashfinance.rule=Host(`dash.railton.eu.org`)"
+        - "traefik.http.routers.dashfinance.entrypoints=websecure"
+        - "traefik.http.routers.dashfinance.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.dashfinance.loadbalancer.server.port=5000"
+    environment:
+      - DB_SERVER=192.168.1.8\SQLEXPRESS
+      - DB_PORT=62311
+      - DB_NAME=uau
+      - DB_USER=claude_readonly
+      - DB_PASS=ClaudeReadOnly2024!
+    volumes:
+      - dashfinance_cache:/app
+    networks:
+      - network_public
+
+volumes:
+  dashfinance_cache:
+
+networks:
+  network_public:
+    external: true

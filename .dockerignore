@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.claude/
+cache.json
+data_ap.json
+data_receitas.json
+*.jpg
+*.jpeg
+.env

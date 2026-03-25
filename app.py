@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
-from db import get_ap, get_receitas
+from db import get_ap, get_receitas, get_saldo_banco
 from datetime import datetime
 import json, os
 
@@ -11,11 +11,12 @@ CACHE_FILE = os.path.join(os.path.dirname(__file__), 'cache.json')
 # CACHE CENTRALIZADO
 # ─────────────────────────────────
 _cache = {
-    'ap':        [],
-    'receitas':  [],
-    'last_sync': None,
-    'de':        None,
-    'ate':       None,
+    'ap':          [],
+    'receitas':    [],
+    'saldo_banco': [],
+    'last_sync':   None,
+    'de':          None,
+    'ate':         None,
 }
 
 def _load_cache():
@@ -30,11 +31,12 @@ def _startup_sync():
     """Busca todos os dados do banco se o cache estiver vazio."""
     if not _cache['ap'] and not _cache['receitas']:
         de, ate = '2020-01-01', '2030-12-31'
-        _cache['ap']        = get_ap(de, ate)
-        _cache['receitas']  = get_receitas(de, ate)
-        _cache['de']        = de
-        _cache['ate']       = ate
-        _cache['last_sync'] = datetime.now().strftime('%d/%m/%Y %H:%M')
+        _cache['ap']          = get_ap(de, ate)
+        _cache['receitas']    = get_receitas(de, ate)
+        _cache['saldo_banco'] = get_saldo_banco(de, ate)
+        _cache['de']          = de
+        _cache['ate']         = ate
+        _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
         try:
             with open(CACHE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(_cache, f, ensure_ascii=False)
@@ -73,11 +75,12 @@ def api_sync():
     """Busca AP + Receitas do banco (range completo), armazena em cache e retorna metadados."""
     de  = '2020-01-01'
     ate = '2030-12-31'
-    _cache['ap']        = get_ap(de, ate)
-    _cache['receitas']  = get_receitas(de, ate)
-    _cache['de']        = de
-    _cache['ate']       = ate
-    _cache['last_sync'] = datetime.now().strftime('%d/%m/%Y %H:%M')
+    _cache['ap']          = get_ap(de, ate)
+    _cache['receitas']    = get_receitas(de, ate)
+    _cache['saldo_banco'] = get_saldo_banco(de, ate)
+    _cache['de']          = de
+    _cache['ate']         = ate
+    _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
     try:
         with open(CACHE_FILE, 'w', encoding='utf-8') as f:
             json.dump(_cache, f, ensure_ascii=False)
@@ -113,6 +116,11 @@ def api_ap():
 def api_receitas():
     return jsonify(_cache['receitas'])
 
+@app.route('/api/saldo_banco')
+def api_saldo_banco():
+    return jsonify(_cache['saldo_banco'])
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

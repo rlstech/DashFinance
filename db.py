@@ -1,7 +1,13 @@
 import pymssql
+import os
 
-DB = dict(server='192.168.1.8\\SQLEXPRESS', port=62311,
-          database='uau', user='claude_readonly', password='ClaudeReadOnly2024!')
+DB = dict(
+    server=os.environ.get('DB_SERVER', '192.168.1.8\\SQLEXPRESS'),
+    port=int(os.environ.get('DB_PORT', 62311)),
+    database=os.environ.get('DB_NAME', 'uau'),
+    user=os.environ.get('DB_USER', 'claude_readonly'),
+    password=os.environ.get('DB_PASS', 'ClaudeReadOnly2024!'),
+)
 
 EMPRESA_MAP = {1:'COMBRASEN', 3:'DRESDEN', 4:'TRUST', 5:'GAMA 01', 6:'CONSÓRCIO HMSJ'}
 
@@ -143,6 +149,36 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             'data_venc': r['DataVenc'] or '',
             'valor':     float(r['Valor'] or 0),
             'status':    r['Status'] or '',
+        }
+        for r in rows
+    ]
+
+
+def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
+    sql = f"""
+    SELECT
+        CASE Empresa_sdcc
+            WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
+            WHEN 4 THEN 'TRUST'     WHEN 5 THEN 'GAMA 01'
+            WHEN 6 THEN 'CONSÓRCIO HMSJ'
+        END AS Empresa,
+        CONVERT(varchar, Data_sdcc, 103) AS Data,
+        SUM(Saldo_sdcc) AS Saldo
+    FROM SaldoConta
+    WHERE Data_sdcc BETWEEN '{de}' AND '{ate}'
+      AND Empresa_sdcc IN (1, 3, 4, 5, 6)
+    GROUP BY Empresa_sdcc, Data_sdcc
+    ORDER BY Data_sdcc, Empresa_sdcc
+    """
+    with _conn() as conn:
+        cur = conn.cursor(as_dict=True)
+        cur.execute(sql)
+        rows = cur.fetchall()
+    return [
+        {
+            'empresa': r['Empresa'] or '',
+            'data':    r['Data'] or '',
+            'saldo':   float(r['Saldo'] or 0),
         }
         for r in rows
     ]

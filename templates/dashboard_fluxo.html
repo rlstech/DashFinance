@@ -473,7 +473,7 @@ td { padding: 10px 14px; vertical-align: middle; }
           <div class="legend-item"><div class="legend-sq" style="background:#EF4444"></div>Saídas</div>
           <div class="legend-item"><div class="legend-line" style="background:#3B82F6"></div>Saldo Acumulado</div>
         </div>
-        <canvas id="chartFluxo" height="200"></canvas>
+        <canvas id="chartFluxo" height="90"></canvas>
       </div>
 
       <!-- TABLE -->
@@ -494,10 +494,12 @@ td { padding: 10px 14px; vertical-align: middle; }
             <thead>
               <tr>
                 <th onclick="sortBy('data')">Data <span class="sort-icon">↕</span></th>
+                <th onclick="sortBy('saldo_anterior')" style="text-align:right">Saldo Anterior <span class="sort-icon">↕</span></th>
                 <th onclick="sortBy('entradas')" style="text-align:right">Entradas <span class="sort-icon">↕</span></th>
                 <th onclick="sortBy('saidas')" style="text-align:right">Saídas <span class="sort-icon">↕</span></th>
                 <th onclick="sortBy('saldo_dia')" style="text-align:right">Saldo do Dia <span class="sort-icon">↕</span></th>
                 <th onclick="sortBy('acumulado')" style="text-align:right">Saldo Acumulado <span class="sort-icon">↕</span></th>
+                <th onclick="sortBy('saldo_banco')" style="text-align:right">Saldo Bancário <span class="sort-icon">↕</span></th>
               </tr>
             </thead>
             <tbody id="tabelaBody"></tbody>
@@ -568,9 +570,10 @@ function setSyncing(active, ts) {
 // ─────────────────────────────────
 // ESTADO GLOBAL
 // ─────────────────────────────────
-let ALL_AP  = [];
-let ALL_REC = [];
-let diasData = [];
+let ALL_AP    = [];
+let ALL_REC   = [];
+let ALL_SALDO = [];
+let diasData  = [];
 let sortCol = 'data', sortAsc = true, currentPage = 1;
 const PAGE_SIZE = 20;
 let donutMode = 'entradas';
@@ -628,12 +631,11 @@ async function aplicarFiltros() {
   setSyncing(true);
   try {
     const meta = await fetch('/api/sync').then(r => r.json());
-    const [apRaw, recRaw] = await Promise.all([
+    [ALL_AP, ALL_REC, ALL_SALDO] = await Promise.all([
       fetch('/api/ap').then(r => r.json()),
-      fetch('/api/receitas').then(r => r.json())
+      fetch('/api/receitas').then(r => r.json()),
+      fetch('/api/saldo_banco').then(r => r.json()),
     ]);
-    ALL_AP  = apRaw;
-    ALL_REC = recRaw;
     recalcular();
     setSyncing(false, meta.last_sync);
   } catch(e) {
@@ -700,6 +702,45 @@ function recalcular() {
     acumulado += saldo;
     return { data: d, entradas: byDate[d].e, saidas: byDate[d].s, saldo_dia: saldo, acumulado };
   });
+
+  // Agregar saldo bancário real por data
+  const saldoFiltrado = ALL_SALDO.filter(r => {
+    if (d1 || d2) {
+      const rd = parseDate(r.data);
+      if (d1 && rd < d1) return false;
+      if (d2 && rd > d2) return false;
+    }
+    return !emp || r.empresa === emp;
+  });
+  const saldoByDate = {};
+  saldoFiltrado.forEach(r => {
+    saldoByDate[r.data] = (saldoByDate[r.data] || 0) + r.saldo;
+  });
+  // Forward-fill: dias sem dado usam o último saldo conhecido
+  let ultimoSaldo = null;
+  diasData = diasData.map(d => {
+    if (saldoByDate[d.data] !== undefined) ultimoSaldo = saldoByDate[d.data];
+    return { ...d, saldo_banco: ultimoSaldo };
+  });
+  // Saldo anterior do primeiro dia: último saldo bancário disponível ANTES do período
+  let saldoPrimeiroDia = null;
+  if (diasData.length > 0) {
+    const primeiraData = parseDate(diasData[0].data);
+    const anteriores = ALL_SALDO
+      .filter(r => (!emp || r.empresa === emp) && parseDate(r.data) < primeiraData)
+      .sort((a, b) => compareDates(b.data, a.data));  // mais recente primeiro
+    if (anteriores.length > 0) {
+      const dataRef = anteriores[0].data;
+      saldoPrimeiroDia = anteriores
+        .filter(r => r.data === dataRef)
+        .reduce((s, r) => s + r.saldo, 0);
+    }
+  }
+  // Saldo anterior = saldo_banco do dia anterior (ou saldo real para o primeiro dia)
+  diasData = diasData.map((d, i) => ({
+    ...d,
+    saldo_anterior: i > 0 ? diasData[i - 1].saldo_banco : saldoPrimeiroDia,
+  }));
 
   populateFilters(entradas, saidas);
   renderBalanceCard();
@@ -833,6 +874,8 @@ function renderChart() {
   const saidas   = diasData.map(d => d.saidas);
   const acumulado= diasData.map(d => d.acumulado);
 
+  const saldoBanco = diasData.map(d => d.saldo_banco);
+
   const ctx = document.getElementById('chartFluxo').getContext('2d');
   if (chartInstance) chartInstance.destroy();
 
@@ -874,6 +917,20 @@ function renderChart() {
           fill: true,
           tension: 0.3,
           yAxisID: 'y2',
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Saldo Bancário',
+          data: saldoBanco,
+          borderColor: '#8B5CF6',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: diasData.length > 60 ? 0 : 3,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          yAxisID: 'y2',
+          spanGaps: true,
           order: 1,
         },
       ]
@@ -954,12 +1011,20 @@ function renderTabela() {
     const tr = document.createElement('tr');
     const saldoClass = d.saldo_dia >= 0 ? 'badge-pos' : 'badge-neg';
     const acumColor  = d.acumulado >= 0 ? 'color:#065F46' : 'color:#991B1B';
+    const sbColor    = d.saldo_banco === null ? 'color:var(--color-text-muted)' :
+                       d.saldo_banco >= 0 ? 'color:#065F46' : 'color:#991B1B';
+    const sbText     = d.saldo_banco === null ? '—' : fmtBRL(d.saldo_banco);
+    const saColor = d.saldo_anterior === null ? 'color:var(--color-text-muted)' :
+                    d.saldo_anterior >= 0 ? 'color:#065F46' : 'color:#991B1B';
+    const saText  = d.saldo_anterior === null ? '—' : fmtBRL(d.saldo_anterior);
     tr.innerHTML = `
       <td class="td-data">${d.data}</td>
+      <td class="td-valor" style="${saColor}">${saText}</td>
       <td class="td-valor" style="color:#065F46">${fmtBRL(d.entradas)}</td>
       <td class="td-valor" style="color:#991B1B">${fmtBRL(d.saidas)}</td>
       <td style="text-align:right"><span class="badge-saldo ${saldoClass}">${fmtBRL(d.saldo_dia)}</span></td>
       <td class="td-valor" style="${acumColor}">${fmtBRL(d.acumulado)}</td>
+      <td class="td-valor" style="${sbColor}">${sbText}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1176,9 +1241,10 @@ function closeSidebar() { document.getElementById('sidebar').classList.remove('o
 // ─────────────────────────────────
 async function carregarDados() {
   try {
-    [ALL_AP, ALL_REC] = await Promise.all([
+    [ALL_AP, ALL_REC, ALL_SALDO] = await Promise.all([
       fetch('/api/ap').then(r => r.json()),
       fetch('/api/receitas').then(r => r.json()),
+      fetch('/api/saldo_banco').then(r => r.json()),
     ]);
     recalcular();
   } catch(e) { console.error(e); }
