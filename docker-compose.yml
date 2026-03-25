@@ -14,7 +14,7 @@ services:
         - "traefik.http.routers.uaudash.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.uaudash.loadbalancer.server.port=5000"
     environment:
-      - DB_SERVER=cloudflared
+      - DB_SERVER=uaudash_cf_proxy
       - DB_PORT=62311
       - DB_NAME=uau
       - DB_USER=claude_readonly
@@ -26,9 +26,13 @@ services:
       - network_public
       - network_internal
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    command: access tcp --hostname sql.railton.eu.org --url 0.0.0.0:62311
+  cf_proxy:
+    image: ghcr.io/rlstech/cf-tcp-proxy:latest
+    environment:
+      - CF_HOSTNAME=sql.railton.eu.org
+      - CF_ACCESS_CLIENT_ID=a5fd8bddd7defb1145bfb0aaf4c35a47.access
+      - CF_ACCESS_CLIENT_SECRET=9a03fb7fedce348d66310fedd34ffff10e99242ee9655284f78b09c8d3b9b9b7
+      - LISTEN_PORT=62311
     deploy:
       replicas: 1
       restart_policy:
