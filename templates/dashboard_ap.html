@@ -1013,6 +1013,40 @@ function populateFilters() {
 }
 
 // ─────────────────────────────────
+// PERSISTÊNCIA DE FILTROS
+// ─────────────────────────────────
+const FILTER_KEY = 'dashfinance_ap_filters';
+
+function saveFilters() {
+  localStorage.setItem(FILTER_KEY, JSON.stringify({
+    dtInicio: document.getElementById('dtInicio').value,
+    dtFim:    document.getElementById('dtFim').value,
+    gEmpresa: document.getElementById('gEmpresa').value,
+    gObra:    document.getElementById('gObra').value,
+    gOrigem:  document.getElementById('gOrigem').value,
+  }));
+}
+
+function loadFilters() {
+  try {
+    const f = JSON.parse(localStorage.getItem(FILTER_KEY) || 'null');
+    if (!f) return;
+    if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
+    if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
+    if (f.gOrigem !== undefined) document.getElementById('gOrigem').value = f.gOrigem;
+    ['gEmpresa', 'gObra'].forEach(id => {
+      const val = f[id]; if (!val) return;
+      const sel = document.getElementById(id);
+      if ([...sel.options].every(o => o.value !== val)) {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val; sel.appendChild(opt);
+      }
+      sel.value = val;
+    });
+  } catch(e) {}
+}
+
+// ─────────────────────────────────
 // RECALCULAR (filtros client-side)
 // ─────────────────────────────────
 function recalcular() {
@@ -1021,6 +1055,7 @@ function recalcular() {
   const orig = document.getElementById('gOrigem').value;
   const ini  = document.getElementById('dtInicio').value;
   const fim  = document.getElementById('dtFim').value;
+  saveFilters();
   const d1   = ini ? new Date(ini + 'T00:00:00') : null;
   const d2   = fim ? new Date(fim + 'T00:00:00') : null;
   filteredData = ALL_DATA.filter(r => {
@@ -1495,6 +1530,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetch('/api/status').then(r => r.json()).then(s => {
     if (s.last_sync) document.getElementById('lastUpdate').textContent = 'Atualizado ' + s.last_sync;
   }).catch(() => {});
+  loadFilters();
   carregarDados();
 });
 </script>

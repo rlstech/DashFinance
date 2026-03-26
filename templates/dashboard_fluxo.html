@@ -647,6 +647,40 @@ async function aplicarFiltros() {
 }
 
 // ─────────────────────────────────
+// PERSISTÊNCIA DE FILTROS
+// ─────────────────────────────────
+const FILTER_KEY = 'dashfinance_fluxo_filters';
+
+function saveFilters() {
+  localStorage.setItem(FILTER_KEY, JSON.stringify({
+    dtInicio: document.getElementById('dtInicio').value,
+    dtFim:    document.getElementById('dtFim').value,
+    gEmpresa: document.getElementById('gEmpresa').value,
+    gObra:    document.getElementById('gObra').value,
+    gVis:     document.getElementById('gVis').value,
+  }));
+}
+
+function loadFilters() {
+  try {
+    const f = JSON.parse(localStorage.getItem(FILTER_KEY) || 'null');
+    if (!f) return;
+    if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
+    if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
+    if (f.gVis !== undefined) document.getElementById('gVis').value = f.gVis;
+    ['gEmpresa', 'gObra'].forEach(id => {
+      const val = f[id]; if (!val) return;
+      const sel = document.getElementById(id);
+      if ([...sel.options].every(o => o.value !== val)) {
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = val; sel.appendChild(opt);
+      }
+      sel.value = val;
+    });
+  } catch(e) {}
+}
+
+// ─────────────────────────────────
 // RECALCULAR (filtra client-side e agrega)
 // ─────────────────────────────────
 function recalcular() {
@@ -655,6 +689,7 @@ function recalcular() {
   const vis  = document.getElementById('gVis').value;
   const ini  = document.getElementById('dtInicio').value;
   const fim  = document.getElementById('dtFim').value;
+  saveFilters();
   const d1   = ini ? new Date(ini + 'T00:00:00') : null;
   const d2   = fim ? new Date(fim + 'T00:00:00') : null;
 
@@ -1291,6 +1326,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetch('/api/status').then(r => r.json()).then(s => {
     if (s.last_sync) document.getElementById('lastUpdate').textContent = 'Atualizado ' + s.last_sync;
   }).catch(() => {});
+  loadFilters();
   carregarDados();
 });
 </script>
