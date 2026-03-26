@@ -624,11 +624,6 @@ const TIPO_LABEL = { M:'Mensal', P:'Entrada', AN:'Anual', S:'Semestral', U:'Úni
 // ─────────────────────────────────
 // UTILITÁRIOS
 // ─────────────────────────────────
-function parseDate(br) {
-  if (!br) return null;
-  const [d,m,y] = br.split('/');
-  return new Date(Number(y), Number(m)-1, Number(d));
-}
 function fmtBRL(v) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -659,6 +654,7 @@ function setSyncing(active, ts) {
 // HELPERS
 // ─────────────────────────────────
 function parseDate(ddmmyyyy) {
+  if (!ddmmyyyy) return null;
   const [d, m, y] = ddmmyyyy.split('/');
   return new Date(`${y}-${m}-${d}T00:00:00`);
 }
@@ -677,6 +673,7 @@ function recalcular() {
   filteredData = ALL_DATA.filter(r => {
     if (d1 || d2) {
       const rd = parseDate(r.data);
+      if (!rd) return false;
       if (d1 && rd < d1) return false;
       if (d2 && rd > d2) return false;
     }
