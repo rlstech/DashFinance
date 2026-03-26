@@ -20,6 +20,7 @@ services:
       - DB_USER=claude_readonly
       - DB_PASS=ClaudeReadOnly2024!
       - CACHE_FILE=/cache/cache.json
+      - TZ=America/Sao_Paulo
     volumes:
       - dashfinance_cache:/cache
     networks:
