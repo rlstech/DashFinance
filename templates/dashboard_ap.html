@@ -717,7 +717,7 @@ td { padding: 10px 14px; vertical-align: middle; }
       <select class="gf-select" id="gOrigem" onchange="recalcular()">
         <option value="">Todas</option>
         <option value="Emissao">Emissão</option>
-        <option value="Planejamento">Planejamento</option>
+        <option value="A Confirmar">A Confirmar</option>
       </select>
     </div>
     <div class="gf-actions">
@@ -807,7 +807,7 @@ td { padding: 10px 14px; vertical-align: middle; }
           </div>
           <div class="kpi-badge badge-neutral" id="kpiBadge3">— planejados</div>
           <div class="kpi-value" id="kpi-plan">—</div>
-          <div class="kpi-label">Planejamento</div>
+          <div class="kpi-label">A Confirmar</div>
         </div>
       </div>
 
@@ -816,7 +816,7 @@ td { padding: 10px 14px; vertical-align: middle; }
         <div class="chart-card-header">
           <div>
             <div class="chart-title">Desembolsos</div>
-            <div class="chart-subtitle">Emissão vs. Planejamento por dia</div>
+            <div class="chart-subtitle">Emissão vs. A Confirmar por dia</div>
             <div class="chart-total" id="chartTotal">R$ —</div>
           </div>
           <div>
@@ -825,7 +825,7 @@ td { padding: 10px 14px; vertical-align: middle; }
         </div>
         <div class="chart-legend">
           <div class="legend-item"><div class="legend-sq" style="background:#2D6A4F"></div>Emissão</div>
-          <div class="legend-item"><div class="legend-sq" style="background:#52B788"></div>Planejamento</div>
+          <div class="legend-item"><div class="legend-sq" style="background:#52B788"></div>A Confirmar</div>
         </div>
         <canvas id="chartTimeline" height="90"></canvas>
       </div>
@@ -889,7 +889,7 @@ td { padding: 10px 14px; vertical-align: middle; }
     </div>
     <div class="stat-filters">
       <div class="stat-filter-pill active" id="statFilterEmissao" onclick="switchStatFilter('emissao')">Emissão</div>
-      <div class="stat-filter-pill" id="statFilterPlan" onclick="switchStatFilter('plan')">Planejamento</div>
+      <div class="stat-filter-pill" id="statFilterPlan" onclick="switchStatFilter('plan')">A Confirmar</div>
     </div>
     <div class="donut-wrap">
       <canvas id="chartDonut" height="200"></canvas>
@@ -1085,9 +1085,9 @@ function renderBalanceCard() {
 function renderKPIs() {
   const total = filteredData.reduce((s,r) => s + r.valor, 0);
   const emissao = filteredData.filter(r => r.origem === 'Emissao').reduce((s,r) => s + r.valor, 0);
-  const plan = filteredData.filter(r => r.origem === 'Planejamento').reduce((s,r) => s + r.valor, 0);
+  const plan = filteredData.filter(r => r.origem === 'A Confirmar').reduce((s,r) => s + r.valor, 0);
   const emissaoCount = filteredData.filter(r => r.origem === 'Emissao').length;
-  const planCount = filteredData.filter(r => r.origem === 'Planejamento').length;
+  const planCount = filteredData.filter(r => r.origem === 'A Confirmar').length;
 
   document.getElementById('kpi-total').textContent = fmtBRL(total);
   document.getElementById('kpi-emissao').textContent = fmtBRL(emissao);
@@ -1208,7 +1208,7 @@ function renderTimelineChart() {
           borderSkipped: false,
         },
         {
-          label: 'Planejamento',
+          label: 'A Confirmar',
           data: allDatas.map(d => byDatePlan[d] || 0),
           backgroundColor: '#52B788',
           borderRadius: { topLeft: 4, topRight: 4 },
@@ -1252,7 +1252,7 @@ function renderTimelineChart() {
 function renderDonutChart() {
   const filtered = statFilter === 'emissao'
     ? filteredData.filter(r => r.origem === 'Emissao')
-    : filteredData.filter(r => r.origem === 'Planejamento');
+    : filteredData.filter(r => r.origem === 'A Confirmar');
   const byEmp = {};
   filtered.forEach(r => { byEmp[r.empresa] = (byEmp[r.empresa] || 0) + r.valor; });
   const empKeys = Object.keys(byEmp).sort();
@@ -1278,7 +1278,7 @@ function renderDonutChart() {
       }
     }
   });
-  document.getElementById('donutCenterLabel').textContent = statFilter === 'emissao' ? 'Total Emissão' : 'Total Planejamento';
+  document.getElementById('donutCenterLabel').textContent = statFilter === 'emissao' ? 'Total Emissão' : 'Total A Confirmar';
   document.getElementById('donutCenterVal').textContent = fmtBRLShort(donutTotal);
   document.getElementById('donutLegend').innerHTML = empKeys.map((e, i) => {
     const pct = donutTotal > 0 ? (byEmp[e]/donutTotal*100).toFixed(0) : 0;
@@ -1340,7 +1340,7 @@ function renderInsights() {
   const byForn = {};
   filteredData.forEach(r => { byForn[r.fornecedor] = (byForn[r.fornecedor]||0) + r.valor; });
   const topForn = Object.entries(byForn).sort((a,b) => b[1]-a[1])[0];
-  const plan = filteredData.filter(r => r.origem === 'Planejamento').reduce((s,r) => s+r.valor, 0);
+  const plan = filteredData.filter(r => r.origem === 'A Confirmar').reduce((s,r) => s+r.valor, 0);
   const planPct = total > 0 ? (plan/total*100).toFixed(0) : 0;
   const byObra = {};
   filteredData.forEach(r => { byObra[r.obra] = (byObra[r.obra]||0) + r.valor; });
@@ -1357,7 +1357,7 @@ function renderInsights() {
   if (topObra) {
     insights.push({ title: `Obra mais onerosa: ${topObra[0]}`, text: `Total de <span class="ai-highlight">${fmtBRL(topObra[1])}</span> nos desembolsos do período.` });
   }
-  insights.push({ title: `${planPct}% em planejamento`, text: `<span class="ai-highlight">${fmtBRL(plan)}</span> previsto e <span class="ai-highlight">${fmtBRL(total-plan)}</span> já emitido.` });
+  insights.push({ title: `${planPct}% a confirmar`, text: `<span class="ai-highlight">${fmtBRL(plan)}</span> a confirmar e <span class="ai-highlight">${fmtBRL(total-plan)}</span> já emitido.` });
   document.getElementById('aiInsights').innerHTML = insights.map(ins => `
     <div class="insight-item">
       <div class="insight-title">${ins.title}</div>
@@ -1417,7 +1417,7 @@ function renderTabela() {
       <td class="td-data">${r.data}</td>
       <td class="td-fornecedor" title="${r.fornecedor}">${r.fornecedor}</td>
       <td class="td-categoria" title="${r.categoria}">${r.categoria}</td>
-      <td><span class="badge-origem ${r.origem==='Emissao'?'badge-emissao':'badge-plan'}">${r.origem==='Emissao'?'Emissão':'Planejamento'}</span></td>
+      <td><span class="badge-origem ${r.origem==='Emissao'?'badge-emissao':'badge-plan'}">${r.origem==='Emissao'?'Emissão':'A Confirmar'}</span></td>
       <td class="td-valor">${fmtBRL(r.valor)}</td>
     </tr>`;
   }).join('');

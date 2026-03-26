@@ -34,7 +34,7 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
             v.ContaCorr_des AS Conta,
             ISNULL(cmf.Desc_cmf, 'S/Categoria') AS Categoria,
             v.TotalLiq_des AS Valor,
-            CASE WHEN v.StatusParc_des = 0 THEN 'Planejamento' ELSE 'Emissao' END AS Origem
+            CASE WHEN v.StatusParc_des = 0 THEN 'A Confirmar' ELSE 'Emissao' END AS Origem
         FROM VwDesembolsoAPagar v
         LEFT JOIN Pessoas p ON p.cod_pes = v.CodForn_Des
         LEFT JOIN CategoriasDeMovFin cmf ON cmf.Codigo_cmf = v.CategMovFin_Des
