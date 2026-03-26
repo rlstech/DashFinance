@@ -124,7 +124,7 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             ISNULL(p.nome_pes, '') AS Cliente,
             r.Tipo_Rec AS Tipo,
             CONVERT(VARCHAR(10), r.Data_Rec, 103) AS Data,
-            CONVERT(VARCHAR(10), r.DataVenci_Rec, 103) AS DataVenc,
+            CONVERT(VARCHAR(10), r.DataPror_Rec, 103) AS DataVenc,
             r.ValorConf_Rec AS Valor,
             'Recebida' AS Status
         FROM Recebidas r
