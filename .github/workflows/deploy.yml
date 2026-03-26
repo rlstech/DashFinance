@@ -22,19 +22,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build e push imagem (app)
+      - name: Build e push imagem
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ghcr.io/rlstech/dashfinance:latest
-
-      - name: Build e push imagem (cf-tcp-proxy)
-        uses: docker/build-push-action@v5
-        with:
-          context: ./cf_proxy
-          push: true
-          tags: ghcr.io/rlstech/cf-tcp-proxy:latest
 
       - name: Redeploy no Portainer
         run: |
