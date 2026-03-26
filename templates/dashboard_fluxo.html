@@ -469,8 +469,10 @@ td { padding: 10px 14px; vertical-align: middle; }
           </div>
         </div>
         <div class="chart-legend">
-          <div class="legend-item"><div class="legend-sq" style="background:#52B788"></div>Entradas</div>
-          <div class="legend-item"><div class="legend-sq" style="background:#EF4444"></div>Saídas</div>
+          <div class="legend-item"><div class="legend-sq" style="background:#52B788"></div>Recebidas</div>
+          <div class="legend-item"><div class="legend-sq" style="background:#B7E4C7"></div>A Receber</div>
+          <div class="legend-item"><div class="legend-sq" style="background:#EF4444"></div>Pago</div>
+          <div class="legend-item"><div class="legend-sq" style="background:#FCA5A5"></div>A Pagar</div>
           <div class="legend-item"><div class="legend-line" style="background:#3B82F6"></div>Saldo Acumulado</div>
         </div>
         <canvas id="chartFluxo" height="90"></canvas>
@@ -687,12 +689,16 @@ function recalcular() {
   // Agregar por data
   const byDate = {};
   entradas.forEach(r => {
-    if (!byDate[r.data]) byDate[r.data] = {e:0, s:0};
+    if (!byDate[r.data]) byDate[r.data] = {e:0, s:0, rec:0, ar:0, emi:0, ap:0};
     byDate[r.data].e += r.valor;
+    if (r.status === 'Recebida')   byDate[r.data].rec += r.valor;
+    else                           byDate[r.data].ar  += r.valor;
   });
   saidas.forEach(r => {
-    if (!byDate[r.data]) byDate[r.data] = {e:0, s:0};
+    if (!byDate[r.data]) byDate[r.data] = {e:0, s:0, rec:0, ar:0, emi:0, ap:0};
     byDate[r.data].s += r.valor;
+    if (r.origem === 'Emissao')    byDate[r.data].emi += r.valor;
+    else                           byDate[r.data].ap  += r.valor;
   });
 
   // Ordenar por data e calcular acumulado
@@ -700,7 +706,8 @@ function recalcular() {
   diasData = Object.keys(byDate).sort(compareDates).map(d => {
     const saldo = byDate[d].e - byDate[d].s;
     acumulado += saldo;
-    return { data: d, entradas: byDate[d].e, saidas: byDate[d].s, saldo_dia: saldo, acumulado };
+    return { data: d, entradas: byDate[d].e, saidas: byDate[d].s, saldo_dia: saldo, acumulado,
+             recebidas: byDate[d].rec, a_receber: byDate[d].ar, emissao: byDate[d].emi, a_pagar: byDate[d].ap };
   });
 
   // Agregar saldo bancário real por data
@@ -869,10 +876,12 @@ function renderStats() {
 let chartInstance = null;
 
 function renderChart() {
-  const labels   = diasData.map(d => d.data);
-  const entradas = diasData.map(d => d.entradas);
-  const saidas   = diasData.map(d => d.saidas);
-  const acumulado= diasData.map(d => d.acumulado);
+  const labels    = diasData.map(d => d.data);
+  const recebidas = diasData.map(d => d.recebidas);
+  const a_receber = diasData.map(d => d.a_receber);
+  const emissao   = diasData.map(d => d.emissao);
+  const a_pagar   = diasData.map(d => d.a_pagar);
+  const acumulado = diasData.map(d => d.acumulado);
 
   const saldoBanco = diasData.map(d => d.saldo_banco);
 
@@ -885,24 +894,50 @@ function renderChart() {
       datasets: [
         {
           type: 'bar',
-          label: 'Entradas',
-          data: entradas,
-          backgroundColor: 'rgba(82,183,136,0.75)',
+          label: 'Recebidas',
+          data: recebidas,
+          backgroundColor: 'rgba(82,183,136,0.85)',
           borderColor: '#52B788',
           borderWidth: 1,
-          borderRadius: 3,
+          borderRadius: 2,
           yAxisID: 'y',
+          stack: 'entradas',
           order: 2,
         },
         {
           type: 'bar',
-          label: 'Saídas',
-          data: saidas,
-          backgroundColor: 'rgba(239,68,68,0.7)',
+          label: 'A Receber',
+          data: a_receber,
+          backgroundColor: 'rgba(183,228,199,0.85)',
+          borderColor: '#B7E4C7',
+          borderWidth: 1,
+          borderRadius: 2,
+          yAxisID: 'y',
+          stack: 'entradas',
+          order: 2,
+        },
+        {
+          type: 'bar',
+          label: 'Pago',
+          data: emissao,
+          backgroundColor: 'rgba(239,68,68,0.8)',
           borderColor: '#EF4444',
           borderWidth: 1,
-          borderRadius: 3,
+          borderRadius: 2,
           yAxisID: 'y',
+          stack: 'saidas',
+          order: 2,
+        },
+        {
+          type: 'bar',
+          label: 'A Pagar',
+          data: a_pagar,
+          backgroundColor: 'rgba(252,165,165,0.85)',
+          borderColor: '#FCA5A5',
+          borderWidth: 1,
+          borderRadius: 2,
+          yAxisID: 'y',
+          stack: 'saidas',
           order: 2,
         },
         {
@@ -959,6 +994,7 @@ function renderChart() {
           }
         },
         y: {
+          stacked: true,
           position: 'left',
           grid: { color: '#F3F4F6' },
           ticks: {
