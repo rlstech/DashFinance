@@ -338,9 +338,21 @@ td { padding: 10px 14px; vertical-align: middle; }
     <div class="gf-group">
       <span class="gf-label">Visualização</span>
       <select class="gf-select" id="gVis" onchange="recalcular()">
+        <option value="todos">Todos</option>
         <option value="realizado">Realizado</option>
         <option value="projetado">Projetado</option>
-        <option value="todos">Todos</option>
+      </select>
+    </div>
+    <div class="gf-group">
+      <span class="gf-label">Banco</span>
+      <select class="gf-select" id="gBanco" onchange="recalcular()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="gf-group">
+      <span class="gf-label">Conta</span>
+      <select class="gf-select" id="gConta" onchange="recalcular()">
+        <option value="">Todas</option>
       </select>
     </div>
     <div class="gf-actions">
@@ -463,9 +475,13 @@ td { padding: 10px 14px; vertical-align: middle; }
       <div class="chart-card">
         <div class="chart-card-header">
           <div>
-            <div class="chart-title">Fluxo de Caixa Diário</div>
+            <div class="chart-title" id="chartTitle">Fluxo de Caixa Diário</div>
             <div class="chart-subtitle">Entradas × Saídas com saldo acumulado</div>
             <div class="chart-total" id="chartSaldo">R$ —</div>
+          </div>
+          <div class="rp-toggle">
+            <button class="rp-toggle-btn active" id="toggleDiario" onclick="setChartMode('diario')">Diário</button>
+            <button class="rp-toggle-btn" id="toggleMensal" onclick="setChartMode('mensal')">Mensal</button>
           </div>
         </div>
         <div class="chart-legend">
@@ -579,6 +595,7 @@ let diasData  = [];
 let sortCol = 'data', sortAsc = true, currentPage = 1;
 const PAGE_SIZE = 20;
 let donutMode = 'entradas';
+let chartMode = 'diario';
 
 const EMPRESA_COLORS = {
   'COMBRASEN':      '#2D6A4F',
@@ -658,6 +675,8 @@ function saveFilters() {
     gEmpresa: document.getElementById('gEmpresa').value,
     gObra:    document.getElementById('gObra').value,
     gVis:     document.getElementById('gVis').value,
+    gBanco:   document.getElementById('gBanco').value,
+    gConta:   document.getElementById('gConta').value,
   }));
 }
 
@@ -668,7 +687,7 @@ function loadFilters() {
     if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
     if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
     if (f.gVis !== undefined) document.getElementById('gVis').value = f.gVis;
-    ['gEmpresa', 'gObra'].forEach(id => {
+    ['gEmpresa', 'gObra', 'gBanco', 'gConta'].forEach(id => {
       const val = f[id]; if (!val) return;
       const sel = document.getElementById(id);
       if ([...sel.options].every(o => o.value !== val)) {
@@ -684,24 +703,28 @@ function loadFilters() {
 // RECALCULAR (filtra client-side e agrega)
 // ─────────────────────────────────
 function recalcular() {
-  const emp  = document.getElementById('gEmpresa').value;
-  const obra = document.getElementById('gObra').value;
-  const vis  = document.getElementById('gVis').value;
-  const ini  = document.getElementById('dtInicio').value;
-  const fim  = document.getElementById('dtFim').value;
+  const emp   = document.getElementById('gEmpresa').value;
+  const obra  = document.getElementById('gObra').value;
+  const vis   = document.getElementById('gVis').value;
+  const banco = document.getElementById('gBanco').value;
+  const conta = document.getElementById('gConta').value;
+  const ini   = document.getElementById('dtInicio').value;
+  const fim   = document.getElementById('dtFim').value;
   saveFilters();
-  const d1   = ini ? new Date(ini + 'T00:00:00') : null;
-  const d2   = fim ? new Date(fim + 'T00:00:00') : null;
+  const d1    = ini ? new Date(ini + 'T00:00:00') : null;
+  const d2    = fim ? new Date(fim + 'T00:00:00') : null;
 
-  // Filtrar saídas (AP)
+  // Filtrar saídas (AP) — banco/conta só se aplica aqui
   const saidas = ALL_AP.filter(r => {
     if (d1 || d2) {
       const rd = parseDate(r.data);
       if (d1 && rd < d1) return false;
       if (d2 && rd > d2) return false;
     }
-    return (!emp  || r.empresa === emp) &&
-           (!obra || r.obra    === obra) &&
+    return (!emp   || r.empresa === emp) &&
+           (!obra  || r.obra    === obra) &&
+           (!banco || r.banco   === banco) &&
+           (!conta || r.conta   === conta) &&
            (vis === 'todos' ||
             (vis === 'realizado'  && r.origem === 'Emissao') ||
             (vis === 'projetado'  && r.origem === 'Planejamento'));
@@ -801,7 +824,9 @@ function resetFiltros() {
   document.getElementById('dtFim').value    = '2026-12-31';
   document.getElementById('gEmpresa').value = '';
   document.getElementById('gObra').value    = '';
-  document.getElementById('gVis').value     = 'realizado';
+  document.getElementById('gVis').value     = 'todos';
+  document.getElementById('gBanco').value   = '';
+  document.getElementById('gConta').value   = '';
   recalcular();
 }
 
@@ -834,6 +859,31 @@ function populateFilters(entradas, saidas) {
     selObra.appendChild(o);
   });
   if (obras.includes(curObra)) selObra.value = curObra;
+
+  // Banco (from AP data)
+  const bancos = [...new Set(ALL_AP.map(r => r.banco).filter(Boolean))].sort();
+  const selBanco = document.getElementById('gBanco');
+  const curBanco = selBanco.value;
+  selBanco.innerHTML = '<option value="">Todos</option>';
+  bancos.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b; o.textContent = b;
+    selBanco.appendChild(o);
+  });
+  if (bancos.includes(curBanco)) selBanco.value = curBanco;
+
+  // Conta (filtrada pelo banco selecionado)
+  const baseConta = curBanco ? ALL_AP.filter(r => r.banco === curBanco) : ALL_AP;
+  const contas = [...new Set(baseConta.map(r => r.conta).filter(Boolean))].sort();
+  const selConta = document.getElementById('gConta');
+  const curConta = selConta.value;
+  selConta.innerHTML = '<option value="">Todas</option>';
+  contas.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    selConta.appendChild(o);
+  });
+  if (contas.includes(curConta)) selConta.value = curConta;
 }
 
 // ─────────────────────────────────
@@ -906,22 +956,79 @@ function renderStats() {
 }
 
 // ─────────────────────────────────
+// CHART MODE TOGGLE (Diário / Mensal)
+// ─────────────────────────────────
+function setChartMode(mode) {
+  chartMode = mode;
+  document.getElementById('toggleDiario').classList.toggle('active', mode === 'diario');
+  document.getElementById('toggleMensal').classList.toggle('active', mode === 'mensal');
+  document.getElementById('chartTitle').textContent =
+    mode === 'diario' ? 'Fluxo de Caixa Diário' : 'Fluxo de Caixa Mensal';
+  renderChart();
+}
+
+const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function aggregateMonthly(data) {
+  const byMonth = {};
+  data.forEach(d => {
+    const [dd, mm, yy] = d.data.split('/');
+    const key = `${mm}/${yy}`;
+    if (!byMonth[key]) {
+      byMonth[key] = { recebidas: 0, a_receber: 0, emissao: 0, a_pagar: 0, entradas: 0, saidas: 0, saldo_banco: null, _sortKey: Number(yy) * 100 + Number(mm) };
+    }
+    byMonth[key].recebidas += d.recebidas;
+    byMonth[key].a_receber += d.a_receber;
+    byMonth[key].emissao   += d.emissao;
+    byMonth[key].a_pagar   += d.a_pagar;
+    byMonth[key].entradas  += d.entradas;
+    byMonth[key].saidas    += d.saidas;
+    // Keep last known bank balance of the month
+    if (d.saldo_banco !== null) byMonth[key].saldo_banco = d.saldo_banco;
+  });
+  const sorted = Object.entries(byMonth).sort((a, b) => a[1]._sortKey - b[1]._sortKey);
+  let acumulado = 0;
+  return sorted.map(([key, v]) => {
+    const [mm, yy] = key.split('/');
+    const label = MESES_ABREV[Number(mm) - 1] + '/' + yy;
+    acumulado += v.entradas - v.saidas;
+    return { label, ...v, acumulado };
+  });
+}
+
+// ─────────────────────────────────
 // GRÁFICO
 // ─────────────────────────────────
 let chartInstance = null;
 
 function renderChart() {
-  const labels    = diasData.map(d => d.data);
-  const recebidas = diasData.map(d => d.recebidas);
-  const a_receber = diasData.map(d => d.a_receber);
-  const emissao   = diasData.map(d => d.emissao);
-  const a_pagar   = diasData.map(d => d.a_pagar);
-  const acumulado = diasData.map(d => d.acumulado);
+  let chartData, labels, recebidas, a_receber, emissao, a_pagar, acumulado, saldoBanco, pointCount;
 
-  const saldoBanco = diasData.map(d => d.saldo_banco);
+  if (chartMode === 'mensal') {
+    const monthly = aggregateMonthly(diasData);
+    labels    = monthly.map(d => d.label);
+    recebidas = monthly.map(d => d.recebidas);
+    a_receber = monthly.map(d => d.a_receber);
+    emissao   = monthly.map(d => d.emissao);
+    a_pagar   = monthly.map(d => d.a_pagar);
+    acumulado = monthly.map(d => d.acumulado);
+    saldoBanco = monthly.map(d => d.saldo_banco);
+    pointCount = monthly.length;
+  } else {
+    labels    = diasData.map(d => d.data);
+    recebidas = diasData.map(d => d.recebidas);
+    a_receber = diasData.map(d => d.a_receber);
+    emissao   = diasData.map(d => d.emissao);
+    a_pagar   = diasData.map(d => d.a_pagar);
+    acumulado = diasData.map(d => d.acumulado);
+    saldoBanco = diasData.map(d => d.saldo_banco);
+    pointCount = diasData.length;
+  }
 
   const ctx = document.getElementById('chartFluxo').getContext('2d');
   if (chartInstance) chartInstance.destroy();
+
+  const barRadius = chartMode === 'mensal' ? 4 : 2;
 
   chartInstance = new Chart(ctx, {
     data: {
@@ -934,7 +1041,7 @@ function renderChart() {
           backgroundColor: 'rgba(82,183,136,0.85)',
           borderColor: '#52B788',
           borderWidth: 1,
-          borderRadius: 2,
+          borderRadius: barRadius,
           yAxisID: 'y',
           stack: 'entradas',
           order: 2,
@@ -946,7 +1053,7 @@ function renderChart() {
           backgroundColor: 'rgba(183,228,199,0.85)',
           borderColor: '#B7E4C7',
           borderWidth: 1,
-          borderRadius: 2,
+          borderRadius: barRadius,
           yAxisID: 'y',
           stack: 'entradas',
           order: 2,
@@ -958,7 +1065,7 @@ function renderChart() {
           backgroundColor: 'rgba(239,68,68,0.8)',
           borderColor: '#EF4444',
           borderWidth: 1,
-          borderRadius: 2,
+          borderRadius: barRadius,
           yAxisID: 'y',
           stack: 'saidas',
           order: 2,
@@ -970,7 +1077,7 @@ function renderChart() {
           backgroundColor: 'rgba(252,165,165,0.85)',
           borderColor: '#FCA5A5',
           borderWidth: 1,
-          borderRadius: 2,
+          borderRadius: barRadius,
           yAxisID: 'y',
           stack: 'saidas',
           order: 2,
@@ -982,7 +1089,7 @@ function renderChart() {
           borderColor: '#3B82F6',
           backgroundColor: 'rgba(59,130,246,0.08)',
           borderWidth: 2,
-          pointRadius: diasData.length > 60 ? 0 : 3,
+          pointRadius: pointCount > 60 ? 0 : 3,
           pointHoverRadius: 5,
           fill: true,
           tension: 0.3,
@@ -996,7 +1103,7 @@ function renderChart() {
           borderColor: '#8B5CF6',
           backgroundColor: 'transparent',
           borderWidth: 2,
-          pointRadius: diasData.length > 60 ? 0 : 3,
+          pointRadius: pointCount > 60 ? 0 : 3,
           pointHoverRadius: 5,
           tension: 0.3,
           yAxisID: 'y2',
@@ -1024,7 +1131,7 @@ function renderChart() {
           grid: { display: false },
           ticks: {
             font: { size: 10 },
-            maxTicksLimit: 12,
+            maxTicksLimit: chartMode === 'mensal' ? 24 : 12,
             maxRotation: 45,
           }
         },

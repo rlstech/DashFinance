@@ -720,6 +720,18 @@ td { padding: 10px 14px; vertical-align: middle; }
         <option value="A Confirmar">A Confirmar</option>
       </select>
     </div>
+    <div class="gf-group">
+      <span class="gf-label">Banco</span>
+      <select class="gf-select" id="gBanco" onchange="recalcular()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="gf-group">
+      <span class="gf-label">Conta</span>
+      <select class="gf-select" id="gConta" onchange="recalcular()">
+        <option value="">Todas</option>
+      </select>
+    </div>
     <div class="gf-actions">
       <button class="gf-btn-apply" onclick="aplicarFiltros()"><i data-lucide="zap"></i> Aplicar</button>
       <button class="gf-btn-reset" onclick="resetFiltros()">Limpar</button>
@@ -1010,6 +1022,31 @@ function populateFilters() {
     selObra.appendChild(o);
   });
   if (obras.includes(curObra)) selObra.value = curObra;
+
+  // Banco
+  const bancos = [...new Set(ALL_DATA.map(r => r.banco).filter(Boolean))].sort();
+  const selBanco = document.getElementById('gBanco');
+  const curBanco = selBanco.value;
+  selBanco.innerHTML = '<option value="">Todos</option>';
+  bancos.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b; o.textContent = b;
+    selBanco.appendChild(o);
+  });
+  if (bancos.includes(curBanco)) selBanco.value = curBanco;
+
+  // Conta (filtrada pelo banco selecionado)
+  const baseConta = curBanco ? ALL_DATA.filter(r => r.banco === curBanco) : ALL_DATA;
+  const contas = [...new Set(baseConta.map(r => r.conta).filter(Boolean))].sort();
+  const selConta = document.getElementById('gConta');
+  const curConta = selConta.value;
+  selConta.innerHTML = '<option value="">Todas</option>';
+  contas.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    selConta.appendChild(o);
+  });
+  if (contas.includes(curConta)) selConta.value = curConta;
 }
 
 // ─────────────────────────────────
@@ -1024,6 +1061,8 @@ function saveFilters() {
     gEmpresa: document.getElementById('gEmpresa').value,
     gObra:    document.getElementById('gObra').value,
     gOrigem:  document.getElementById('gOrigem').value,
+    gBanco:   document.getElementById('gBanco').value,
+    gConta:   document.getElementById('gConta').value,
   }));
 }
 
@@ -1034,7 +1073,7 @@ function loadFilters() {
     if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
     if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
     if (f.gOrigem !== undefined) document.getElementById('gOrigem').value = f.gOrigem;
-    ['gEmpresa', 'gObra'].forEach(id => {
+    ['gEmpresa', 'gObra', 'gBanco', 'gConta'].forEach(id => {
       const val = f[id]; if (!val) return;
       const sel = document.getElementById(id);
       if ([...sel.options].every(o => o.value !== val)) {
@@ -1050,23 +1089,27 @@ function loadFilters() {
 // RECALCULAR (filtros client-side)
 // ─────────────────────────────────
 function recalcular() {
-  const emp  = document.getElementById('gEmpresa').value;
-  const obra = document.getElementById('gObra').value;
-  const orig = document.getElementById('gOrigem').value;
-  const ini  = document.getElementById('dtInicio').value;
-  const fim  = document.getElementById('dtFim').value;
+  const emp   = document.getElementById('gEmpresa').value;
+  const obra  = document.getElementById('gObra').value;
+  const orig  = document.getElementById('gOrigem').value;
+  const banco = document.getElementById('gBanco').value;
+  const conta = document.getElementById('gConta').value;
+  const ini   = document.getElementById('dtInicio').value;
+  const fim   = document.getElementById('dtFim').value;
   saveFilters();
-  const d1   = ini ? new Date(ini + 'T00:00:00') : null;
-  const d2   = fim ? new Date(fim + 'T00:00:00') : null;
+  const d1    = ini ? new Date(ini + 'T00:00:00') : null;
+  const d2    = fim ? new Date(fim + 'T00:00:00') : null;
   filteredData = ALL_DATA.filter(r => {
     if (d1 || d2) {
       const rd = parseDate(r.data);
       if (d1 && rd < d1) return false;
       if (d2 && rd > d2) return false;
     }
-    if (emp  && r.empresa !== emp)  return false;
-    if (obra && r.obra    !== obra) return false;
-    if (orig && r.origem  !== orig) return false;
+    if (emp   && r.empresa !== emp)   return false;
+    if (obra  && r.obra    !== obra)  return false;
+    if (orig  && r.origem  !== orig)  return false;
+    if (banco && r.banco   !== banco) return false;
+    if (conta && r.conta   !== conta) return false;
     return true;
   });
   populateFilters();
@@ -1084,6 +1127,8 @@ function resetFiltros() {
   document.getElementById('gEmpresa').value = '';
   document.getElementById('gObra').value    = '';
   document.getElementById('gOrigem').value  = '';
+  document.getElementById('gBanco').value   = '';
+  document.getElementById('gConta').value   = '';
   recalcular();
 }
 

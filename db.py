@@ -79,14 +79,14 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             CAST(cr.Obra_Prc AS VARCHAR) AS Obra,
             ISNULL(p.nome_pes, '') AS Cliente,
             cr.Tipo_Prc AS Tipo,
-            CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.DataVenci_Prc), 103) AS Data,
-            CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.DataVenci_Prc), 103) AS DataVenc,
+            CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS Data,
+            CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS DataVenc,
             cr.Valor_Prc AS Valor,
             'A Receber' AS Status
         FROM ContasReceber cr
         LEFT JOIN Pessoas p ON p.cod_pes = cr.Cliente_Prc
         WHERE cr.Status_Prc = 0
-          AND ISNULL(cr.DataPror_Prc, cr.DataVenci_Prc) BETWEEN '{de}' AND '{ate}'
+          AND ISNULL(cr.DataPror_Prc, cr.Data_Prc) BETWEEN '{de}' AND '{ate}'
 
         UNION ALL
 
@@ -124,7 +124,7 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             ISNULL(p.nome_pes, '') AS Cliente,
             r.Tipo_Rec AS Tipo,
             CONVERT(VARCHAR(10), r.Data_Rec, 103) AS Data,
-            CONVERT(VARCHAR(10), r.DataPror_Rec, 103) AS DataVenc,
+            CONVERT(VARCHAR(10), r.DataVenci_Rec, 103) AS DataVenc,
             r.ValorConf_Rec AS Valor,
             'Recebida' AS Status
         FROM Recebidas r
