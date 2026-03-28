@@ -416,6 +416,18 @@ td { padding: 10px 14px; vertical-align: middle; }
         <option value="Recebida">Recebida</option>
       </select>
     </div>
+    <div class="gf-group">
+      <span class="gf-label">Banco</span>
+      <select class="gf-select" id="gBanco" onchange="recalcular()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="gf-group">
+      <span class="gf-label">Conta</span>
+      <select class="gf-select" id="gConta" onchange="recalcular()">
+        <option value="">Todas</option>
+      </select>
+    </div>
     <div class="gf-actions">
       <button class="gf-btn-apply" onclick="aplicarFiltros()"><i data-lucide="zap"></i> Aplicar</button>
       <button class="gf-btn-reset" onclick="resetFiltros()">Limpar</button>
@@ -671,6 +683,8 @@ function saveFilters() {
     gEmpresa: document.getElementById('gEmpresa').value,
     gObra:    document.getElementById('gObra').value,
     gStatus:  document.getElementById('gStatus').value,
+    gBanco:   document.getElementById('gBanco').value,
+    gConta:   document.getElementById('gConta').value,
   }));
 }
 
@@ -681,7 +695,7 @@ function loadFilters() {
     if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
     if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
     if (f.gStatus !== undefined) document.getElementById('gStatus').value = f.gStatus;
-    ['gEmpresa', 'gObra'].forEach(id => {
+    ['gEmpresa', 'gObra', 'gBanco', 'gConta'].forEach(id => {
       const val = f[id]; if (!val) return;
       const sel = document.getElementById(id);
       if ([...sel.options].every(o => o.value !== val)) {
@@ -700,6 +714,8 @@ function recalcular() {
   const emp    = document.getElementById('gEmpresa').value;
   const obra   = document.getElementById('gObra').value;
   const status = document.getElementById('gStatus').value;
+  const banco  = document.getElementById('gBanco').value;
+  const conta  = document.getElementById('gConta').value;
   const ini    = document.getElementById('dtInicio').value;
   const fim    = document.getElementById('dtFim').value;
   saveFilters();
@@ -715,6 +731,8 @@ function recalcular() {
     if (emp    && r.empresa !== emp)    return false;
     if (obra   && r.obra    !== obra)   return false;
     if (status && r.status  !== status) return false;
+    if (banco  && r.banco   !== banco)  return false;
+    if (conta  && r.conta   !== conta)  return false;
     return true;
   });
   currentPage = 1;
@@ -741,6 +759,8 @@ function resetFiltros() {
   document.getElementById('gEmpresa').value = '';
   document.getElementById('gObra').value    = '';
   document.getElementById('gStatus').value  = '';
+  document.getElementById('gBanco').value   = '';
+  document.getElementById('gConta').value   = '';
   recalcular();
 }
 
@@ -774,6 +794,31 @@ function populateFilters() {
     selObra.appendChild(o);
   });
   if (obras.includes(curObra)) selObra.value = curObra;
+
+  // Banco
+  const selBanco = document.getElementById('gBanco');
+  const curBanco = selBanco.value;
+  const bancos = [...new Set(ALL_DATA.map(r => r.banco).filter(Boolean))].sort();
+  selBanco.innerHTML = '<option value="">Todos</option>';
+  bancos.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b; o.textContent = b;
+    selBanco.appendChild(o);
+  });
+  if (bancos.includes(curBanco)) selBanco.value = curBanco;
+
+  // Conta (filtrada pelo banco selecionado)
+  const selConta = document.getElementById('gConta');
+  const curConta = selConta.value;
+  const baseConta = curBanco ? ALL_DATA.filter(r => r.banco === curBanco) : ALL_DATA;
+  const contas = [...new Set(baseConta.map(r => r.conta).filter(Boolean))].sort();
+  selConta.innerHTML = '<option value="">Todas</option>';
+  contas.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    selConta.appendChild(o);
+  });
+  if (contas.includes(curConta)) selConta.value = curConta;
 
   // Tipo (tabela) — baseado em filteredData
   const selTipo = document.getElementById('filtTipo');

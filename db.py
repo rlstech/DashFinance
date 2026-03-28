@@ -2,11 +2,11 @@ import pymssql
 import os
 
 DB = dict(
-    server=os.environ.get('DB_SERVER', '192.168.1.8\\SQLEXPRESS'),
-    port=int(os.environ.get('DB_PORT', 62311)),
-    database=os.environ.get('DB_NAME', 'uau'),
-    user=os.environ.get('DB_USER', 'claude_readonly'),
-    password=os.environ.get('DB_PASS', 'ClaudeReadOnly2024!'),
+    server=os.environ['DB_SERVER'],
+    port=int(os.environ.get('DB_PORT', '62311')),
+    database=os.environ['DB_NAME'],
+    user=os.environ['DB_USER'],
+    password=os.environ['DB_PASS'],
 )
 
 EMPRESA_MAP = {1:'COMBRASEN', 3:'DRESDEN', 4:'TRUST', 5:'GAMA 01', 6:'CONSÓRCIO HMSJ'}
@@ -16,7 +16,7 @@ def _conn():
 
 
 def get_ap(de='2026-01-01', ate='2026-06-30'):
-    sql = f"""
+    sql = """
     SELECT Empresa, Obra, Data, Fornecedor, Banco, Conta, Categoria,
            SUM(Valor) AS Valor, Origem
     FROM (
@@ -39,14 +39,14 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
         LEFT JOIN Pessoas p ON p.cod_pes = v.CodForn_Des
         LEFT JOIN CategoriasDeMovFin cmf ON cmf.Codigo_cmf = v.CategMovFin_Des
         WHERE v.StatusParc_des IN (0, 1)
-          AND v.DtPgto_des BETWEEN '{de}' AND '{ate}'
+          AND v.DtPgto_des BETWEEN %s AND %s
     ) t
     GROUP BY Empresa, Obra, Data, Fornecedor, Banco, Conta, Categoria, Origem
     ORDER BY Data, Empresa, Obra
     """
     with _conn() as conn:
         cur = conn.cursor(as_dict=True)
-        cur.execute(sql)
+        cur.execute(sql, (de, ate))
         rows = cur.fetchall()
     return [
         {
@@ -65,7 +65,7 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
 
 
 def get_receitas(de='2026-01-01', ate='2026-06-30'):
-    sql = f"""
+    sql = """
     SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status
     FROM (
         -- Parcelas a receber (em aberto)
@@ -82,11 +82,13 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS Data,
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS DataVenc,
             cr.Valor_Prc AS Valor,
-            'A Receber' AS Status
+            'A Receber' AS Status,
+            ISNULL(CAST(cr.NumeroBanco_prc AS VARCHAR), '') AS Banco,
+            ISNULL(cr.ContaBanco_prc, '') AS Conta
         FROM ContasReceber cr
         LEFT JOIN Pessoas p ON p.cod_pes = cr.Cliente_Prc
         WHERE cr.Status_Prc = 0
-          AND ISNULL(cr.DataPror_Prc, cr.Data_Prc) BETWEEN '{de}' AND '{ate}'
+          AND ISNULL(cr.DataPror_Prc, cr.Data_Prc) BETWEEN %s AND %s
 
         UNION ALL
 
@@ -104,11 +106,13 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             CONVERT(VARCHAR(10), v.Data, 103) AS Data,
             CONVERT(VARCHAR(10), v.Data, 103) AS DataVenc,
             v.[Valor recebido] AS Valor,
-            'Recebida' AS Status
+            'Recebida' AS Status,
+            '' AS Banco,
+            '' AS Conta
         FROM VWBI_Receitas v
         WHERE v.StatusPL = 'REALIZADO'
           AND v.[Valor recebido] > 0
-          AND v.Data BETWEEN '{de}' AND '{ate}'
+          AND v.Data BETWEEN %s AND %s
 
         UNION ALL
 
@@ -126,18 +130,20 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             CONVERT(VARCHAR(10), r.Data_Rec, 103) AS Data,
             CONVERT(VARCHAR(10), r.DataVenci_Rec, 103) AS DataVenc,
             r.ValorConf_Rec AS Valor,
-            'Recebida' AS Status
+            'Recebida' AS Status,
+            ISNULL(CAST(r.NumeroBanco_rec AS VARCHAR), '') AS Banco,
+            ISNULL(r.ContaBanco_rec, '') AS Conta
         FROM Recebidas r
         LEFT JOIN Pessoas p ON p.cod_pes = r.Cliente_Rec
         WHERE r.Status_Rec = 1
-          AND r.Data_Rec BETWEEN '{de}' AND '{ate}'
+          AND r.Data_Rec BETWEEN %s AND %s
           AND r.Empresa_rec NOT IN (SELECT DISTINCT Empresa FROM VWBI_Receitas)
     ) t
     ORDER BY Data, Empresa, Obra
     """
     with _conn() as conn:
         cur = conn.cursor(as_dict=True)
-        cur.execute(sql)
+        cur.execute(sql, (de, ate, de, ate, de, ate))
         rows = cur.fetchall()
     return [
         {
@@ -149,13 +155,15 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             'data_venc': r['DataVenc'] or '',
             'valor':     float(r['Valor'] or 0),
             'status':    r['Status'] or '',
+            'banco':     str(r['Banco'] or '').strip(),
+            'conta':     str(r['Conta'] or '').strip(),
         }
         for r in rows
     ]
 
 
 def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
-    sql = f"""
+    sql = """
     SELECT
         CASE Empresa_sdcc
             WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -165,14 +173,14 @@ def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
         CONVERT(varchar, Data_sdcc, 103) AS Data,
         SUM(Saldo_sdcc) AS Saldo
     FROM SaldoConta
-    WHERE Data_sdcc BETWEEN '{de}' AND '{ate}'
+    WHERE Data_sdcc BETWEEN %s AND %s
       AND Empresa_sdcc IN (1, 3, 4, 5, 6)
     GROUP BY Empresa_sdcc, Data_sdcc
     ORDER BY Data_sdcc, Empresa_sdcc
     """
     with _conn() as conn:
         cur = conn.cursor(as_dict=True)
-        cur.execute(sql)
+        cur.execute(sql, (de, ate))
         rows = cur.fetchall()
     return [
         {
