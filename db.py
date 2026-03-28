@@ -66,7 +66,7 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
 
 def get_receitas(de='2026-01-01', ate='2026-06-30'):
     sql = """
-    SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status
+    SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status, Banco, Conta
     FROM (
         -- Parcelas a receber (em aberto)
         SELECT
