@@ -20,6 +20,7 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
     SELECT Empresa, Obra, Data, Fornecedor, Banco, Conta, Categoria,
            SUM(Valor) AS Valor, Origem
     FROM (
+        -- A pagar: planejado (A Confirmar) e emitido (Emissao)
         SELECT
             CASE v.Empresa_des
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -40,13 +41,36 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
         LEFT JOIN CategoriasDeMovFin cmf ON cmf.Codigo_cmf = v.CategMovFin_Des
         WHERE v.StatusParc_des IN (0, 1)
           AND v.DtPgto_des BETWEEN %s AND %s
+
+        UNION ALL
+
+        -- Pagos: efetivados (VwDesembolsoPago)
+        SELECT
+            CASE v.Empresa_des
+                WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
+                WHEN 4 THEN 'TRUST'     WHEN 5 THEN 'GAMA 01'
+                WHEN 6 THEN 'CONSÓRCIO HMSJ'
+                ELSE CAST(v.Empresa_des AS VARCHAR)
+            END AS Empresa,
+            CAST(v.Obra_des AS VARCHAR) AS Obra,
+            CONVERT(VARCHAR(10), v.DtPgto_des, 103) AS Data,
+            p.nome_pes AS Fornecedor,
+            CAST(v.Banco_des AS VARCHAR) AS Banco,
+            v.ContaCorr_des AS Conta,
+            ISNULL(cmf.Desc_cmf, 'S/Categoria') AS Categoria,
+            v.TotalLiq_des AS Valor,
+            'Pago' AS Origem
+        FROM VwDesembolsoPago v
+        LEFT JOIN Pessoas p ON p.cod_pes = v.CodForn_Des
+        LEFT JOIN CategoriasDeMovFin cmf ON cmf.Codigo_cmf = v.CategMovFin_Des
+        WHERE v.DtPgto_des BETWEEN %s AND %s
     ) t
     GROUP BY Empresa, Obra, Data, Fornecedor, Banco, Conta, Categoria, Origem
     ORDER BY Data, Empresa, Obra
     """
     with _conn() as conn:
         cur = conn.cursor(as_dict=True)
-        cur.execute(sql, (de, ate))
+        cur.execute(sql, (de, ate, de, ate))
         rows = cur.fetchall()
     return [
         {

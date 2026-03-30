@@ -638,10 +638,6 @@ function compareDates(a, b) {
 // ─────────────────────────────────
 // HELPERS
 // ─────────────────────────────────
-function parseDate(ddmmyyyy) {
-  const [d, m, y] = ddmmyyyy.split('/');
-  return new Date(`${y}-${m}-${d}T00:00:00`);
-}
 
 // ─────────────────────────────────
 // FILTROS PRINCIPAIS (fetch ao banco)
@@ -726,8 +722,8 @@ function recalcular() {
            (!banco || r.banco   === banco) &&
            (!conta || r.conta   === conta) &&
            (vis === 'todos' ||
-            (vis === 'realizado'  && r.origem === 'Emissao') ||
-            (vis === 'projetado'  && r.origem === 'Planejamento'));
+            (vis === 'realizado'  && r.origem === 'Pago') ||
+            (vis === 'projetado'  && (r.origem === 'A Confirmar' || r.origem === 'Emissao')));
   });
 
   // Filtrar entradas (Receitas)
@@ -755,7 +751,7 @@ function recalcular() {
   saidas.forEach(r => {
     if (!byDate[r.data]) byDate[r.data] = {e:0, s:0, rec:0, ar:0, emi:0, ap:0};
     byDate[r.data].s += r.valor;
-    if (r.origem === 'Emissao')    byDate[r.data].emi += r.valor;
+    if (r.origem === 'Pago')        byDate[r.data].emi += r.valor;
     else                           byDate[r.data].ap  += r.valor;
   });
 
@@ -1255,7 +1251,7 @@ function setDonutMode(mode) {
 
   const filteredAP  = ALL_AP.filter(r =>
     (!emp || r.empresa===emp) && (!obra || r.obra===obra) &&
-    (vis==='todos'||(vis==='realizado'&&r.origem==='Emissao')||(vis==='projetado'&&r.origem==='Planejamento'))
+    (vis==='todos'||(vis==='realizado'&&r.origem==='Pago')||(vis==='projetado'&&(r.origem==='A Confirmar'||r.origem==='Emissao')))
   );
   const filteredREC = ALL_REC.filter(r =>
     (!emp || r.empresa===emp) && (!obra || r.obra===obra) &&
