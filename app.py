@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from db import get_ap, get_receitas, get_saldo_banco
+from excel_sync import get_excel_data
 from datetime import datetime
 import json, os
 
@@ -27,6 +28,15 @@ def _load_cache():
         except Exception:
             pass
 
+def _merge_excel():
+    """Extende o cache com dados das planilhas Excel. Não-fatal."""
+    try:
+        ex_ap, ex_rec = get_excel_data()
+        _cache['ap'].extend(ex_ap)
+        _cache['receitas'].extend(ex_rec)
+    except Exception:
+        pass
+
 def _startup_sync():
     """Busca todos os dados do banco se o cache estiver vazio."""
     if not _cache['ap'] and not _cache['receitas']:
@@ -38,6 +48,7 @@ def _startup_sync():
             _cache['de']          = de
             _cache['ate']         = ate
             _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
+            _merge_excel()
             with open(CACHE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(_cache, f, ensure_ascii=False)
         except Exception:
@@ -81,6 +92,7 @@ def api_sync():
     _cache['de']          = de
     _cache['ate']         = ate
     _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
+    _merge_excel()
     try:
         with open(CACHE_FILE, 'w', encoding='utf-8') as f:
             json.dump(_cache, f, ensure_ascii=False)
