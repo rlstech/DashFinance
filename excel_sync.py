@@ -112,14 +112,14 @@ def get_excel_data():
         (
             os.environ.get(
                 'EXCEL_COMBRASEN',
-                r'\\192.168.1.7\Dados\appsheet\FLUXO DE CAIXA COMBRASEN 2026.xlsx',
+                r'\\192.168.1.8\FINAN\FLUXO DE CAIXA\FLUXO DE CAIXA COMBRASEN 2026.xlsx',
             ),
             'COMBRASEN',
         ),
         (
             os.environ.get(
                 'EXCEL_GAMA01',
-                r'\\192.168.1.7\Dados\appsheet\FLUXO DE CAIXA GAMA 01 2026.xlsx',
+                r'\\192.168.1.8\FINAN\FLUXO DE CAIXA\FLUXO DE CAIXA GAMA 01 2026.xlsx',
             ),
             'GAMA 01',
         ),
