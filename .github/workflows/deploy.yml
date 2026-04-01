@@ -37,4 +37,4 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             docker pull ghcr.io/rlstech/dashfinance:latest
-            docker service update --image ghcr.io/rlstech/dashfinance:latest --with-registry-auth uaudash_app
+            docker service update --image ghcr.io/rlstech/dashfinance:latest --with-registry-auth --force uaudash_app
