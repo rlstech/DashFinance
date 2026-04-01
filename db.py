@@ -194,13 +194,14 @@ def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
             WHEN 4 THEN 'TRUST'     WHEN 5 THEN 'GAMA 01'
             WHEN 6 THEN 'CONSÓRCIO HMSJ'
         END AS Empresa,
+        CAST(Banco_sdcc AS VARCHAR) AS Banco,
+        ContaCorr_sdcc AS Conta,
         CONVERT(varchar, Data_sdcc, 103) AS Data,
-        SUM(Saldo_sdcc) AS Saldo
+        Saldo_sdcc AS Saldo
     FROM SaldoConta
     WHERE Data_sdcc BETWEEN %s AND %s
       AND Empresa_sdcc IN (1, 3, 4, 5, 6)
-    GROUP BY Empresa_sdcc, Data_sdcc
-    ORDER BY Data_sdcc, Empresa_sdcc
+    ORDER BY Data_sdcc, Empresa_sdcc, Banco_sdcc
     """
     with _conn() as conn:
         cur = conn.cursor(as_dict=True)
@@ -209,6 +210,8 @@ def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
     return [
         {
             'empresa': r['Empresa'] or '',
+            'banco':   str(r['Banco'] or '').strip(),
+            'conta':   str(r['Conta'] or '').strip(),
             'data':    r['Data'] or '',
             'saldo':   float(r['Saldo'] or 0),
         }

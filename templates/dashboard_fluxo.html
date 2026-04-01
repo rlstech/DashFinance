@@ -262,6 +262,20 @@ td { padding: 10px 14px; vertical-align: middle; }
 .sync-btn svg { width: 13px; height: 13px; }
 .sync-btn.syncing svg { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* MULTI-SELECT DROPDOWN */
+.gf-multiselect { position: relative; }
+.gf-ms-trigger { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 7px 10px; font-size: var(--text-sm); color: var(--color-text-primary); background: var(--color-background); font-family: var(--font-family); outline: none; transition: border-color 0.15s; height: 34px; min-width: 140px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px; user-select: none; }
+.gf-ms-trigger:hover, .gf-ms-trigger.open { border-color: var(--color-primary-light); }
+.gf-ms-trigger svg { width: 12px; height: 12px; color: var(--color-text-muted); flex-shrink: 0; transition: transform 0.15s; }
+.gf-ms-trigger.open svg { transform: rotate(180deg); }
+.gf-ms-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gf-ms-dropdown { position: absolute; top: calc(100% + 4px); left: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-elevated); z-index: 50; max-height: 220px; overflow-y: auto; min-width: 180px; display: none; }
+.gf-ms-dropdown.open { display: block; }
+.gf-ms-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; cursor: pointer; font-size: var(--text-sm); color: var(--color-text-primary); transition: background 0.1s; }
+.gf-ms-item:hover { background: var(--color-primary-pale); }
+.gf-ms-item input[type="checkbox"] { accent-color: var(--color-primary); cursor: pointer; }
+.gf-ms-item.all-item { border-bottom: 1px solid var(--color-border); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -346,15 +360,23 @@ td { padding: 10px 14px; vertical-align: middle; }
     </div>
     <div class="gf-group">
       <span class="gf-label">Banco</span>
-      <select class="gf-select" id="gBanco" onchange="recalcular()">
-        <option value="">Todos</option>
-      </select>
+      <div class="gf-multiselect" id="gBancoWrap">
+        <div class="gf-ms-trigger" onclick="toggleMultiDropdown('gBanco', event)">
+          <span class="gf-ms-text" id="gBancoText">Todos</span>
+          <i data-lucide="chevron-down"></i>
+        </div>
+        <div class="gf-ms-dropdown" id="gBancoDropdown"></div>
+      </div>
     </div>
     <div class="gf-group">
       <span class="gf-label">Conta</span>
-      <select class="gf-select" id="gConta" onchange="recalcular()">
-        <option value="">Todas</option>
-      </select>
+      <div class="gf-multiselect" id="gContaWrap">
+        <div class="gf-ms-trigger" onclick="toggleMultiDropdown('gConta', event)">
+          <span class="gf-ms-text" id="gContaText">Todas</span>
+          <i data-lucide="chevron-down"></i>
+        </div>
+        <div class="gf-ms-dropdown" id="gContaDropdown"></div>
+      </div>
     </div>
     <div class="gf-actions">
       <button class="gf-btn-apply" onclick="aplicarFiltros()"><i data-lucide="zap"></i> Aplicar</button>
@@ -637,8 +659,90 @@ function compareDates(a, b) {
 }
 
 // ─────────────────────────────────
-// HELPERS
+// MULTI-SELECT BANCO/CONTA
 // ─────────────────────────────────
+let selectedBancos = [];
+let selectedContas = [];
+
+function toggleMultiDropdown(id, event) {
+  event.stopPropagation();
+  const dd = document.getElementById(id + 'Dropdown');
+  const trigger = dd.previousElementSibling;
+  const wasOpen = dd.classList.contains('open');
+  // Fechar todos
+  document.querySelectorAll('.gf-ms-dropdown.open').forEach(d => { d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); });
+  if (!wasOpen) { dd.classList.add('open'); trigger.classList.add('open'); }
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.gf-ms-dropdown.open').forEach(d => { d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.gf-ms-dropdown').forEach(dd => dd.addEventListener('click', e => e.stopPropagation()));
+});
+
+function toggleSelection(id, val) {
+  const arr = id === 'gBanco' ? selectedBancos : selectedContas;
+  const idx = arr.indexOf(val);
+  if (idx >= 0) arr.splice(idx, 1); else arr.push(val);
+  renderMultiDropdown(id);
+  recalcular();
+}
+
+function clearSelection(id) {
+  if (id === 'gBanco') selectedBancos = []; else selectedContas = [];
+  renderMultiDropdown(id);
+  recalcular();
+}
+
+function renderMultiDropdown(id) {
+  const selected = id === 'gBanco' ? selectedBancos : selectedContas;
+  const allLabel = id === 'gBanco' ? 'Todos' : 'Todas';
+  const dd = document.getElementById(id + 'Dropdown');
+  const items = [...dd.querySelectorAll('.gf-ms-item:not(.all-item)')];
+  // Update checkboxes
+  items.forEach(item => {
+    const cb = item.querySelector('input');
+    if (cb) cb.checked = selected.includes(cb.value);
+  });
+  const allCb = dd.querySelector('.all-item input');
+  if (allCb) allCb.checked = selected.length === 0;
+  // Update trigger text
+  const textEl = document.getElementById(id + 'Text');
+  if (selected.length === 0) textEl.textContent = allLabel;
+  else if (selected.length === 1) textEl.textContent = selected[0];
+  else textEl.textContent = selected.length + ' selecionados';
+}
+
+function populateMultiDropdown(id, options) {
+  const selected = id === 'gBanco' ? selectedBancos : selectedContas;
+  const allLabel = id === 'gBanco' ? 'Todos' : 'Todas';
+  const dd = document.getElementById(id + 'Dropdown');
+  dd.innerHTML = '';
+  // "Todos/Todas" item
+  const allItem = document.createElement('div');
+  allItem.className = 'gf-ms-item all-item';
+  allItem.innerHTML = `<input type="checkbox" ${selected.length === 0 ? 'checked' : ''}> ${allLabel}`;
+  allItem.onclick = () => clearSelection(id);
+  dd.appendChild(allItem);
+  // Individual items
+  options.forEach(val => {
+    const item = document.createElement('div');
+    item.className = 'gf-ms-item';
+    item.innerHTML = `<input type="checkbox" value="${val}" ${selected.includes(val) ? 'checked' : ''}> ${val}`;
+    item.onclick = () => toggleSelection(id, val);
+    dd.appendChild(item);
+  });
+  // Update trigger text
+  const textEl = document.getElementById(id + 'Text');
+  if (selected.length === 0) textEl.textContent = allLabel;
+  else if (selected.length === 1) textEl.textContent = selected[0];
+  else textEl.textContent = selected.length + ' selecionados';
+  // Remove selected values that are no longer in options
+  if (id === 'gBanco') selectedBancos = selectedBancos.filter(v => options.includes(v));
+  else selectedContas = selectedContas.filter(v => options.includes(v));
+}
 
 // ─────────────────────────────────
 // FILTROS PRINCIPAIS (fetch ao banco)
@@ -672,8 +776,8 @@ function saveFilters() {
     gEmpresa: document.getElementById('gEmpresa').value,
     gObra:    document.getElementById('gObra').value,
     gVis:     document.getElementById('gVis').value,
-    gBanco:   document.getElementById('gBanco').value,
-    gConta:   document.getElementById('gConta').value,
+    gBanco:   selectedBancos,
+    gConta:   selectedContas,
   }));
 }
 
@@ -684,7 +788,7 @@ function loadFilters() {
     if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
     if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
     if (f.gVis !== undefined) document.getElementById('gVis').value = f.gVis;
-    ['gEmpresa', 'gObra', 'gBanco', 'gConta'].forEach(id => {
+    ['gEmpresa', 'gObra'].forEach(id => {
       const val = f[id]; if (!val) return;
       const sel = document.getElementById(id);
       if ([...sel.options].every(o => o.value !== val)) {
@@ -693,6 +797,9 @@ function loadFilters() {
       }
       sel.value = val;
     });
+    // Multi-select banco/conta (backward compat: string → array)
+    if (f.gBanco) selectedBancos = Array.isArray(f.gBanco) ? f.gBanco : [f.gBanco];
+    if (f.gConta) selectedContas = Array.isArray(f.gConta) ? f.gConta : [f.gConta];
   } catch(e) {}
 }
 
@@ -700,34 +807,32 @@ function loadFilters() {
 // RECALCULAR (filtra client-side e agrega)
 // ─────────────────────────────────
 function recalcular() {
-  const emp   = document.getElementById('gEmpresa').value;
-  const obra  = document.getElementById('gObra').value;
-  const vis   = document.getElementById('gVis').value;
-  const banco = document.getElementById('gBanco').value;
-  const conta = document.getElementById('gConta').value;
-  const ini   = document.getElementById('dtInicio').value;
-  const fim   = document.getElementById('dtFim').value;
+  const emp  = document.getElementById('gEmpresa').value;
+  const obra = document.getElementById('gObra').value;
+  const vis  = document.getElementById('gVis').value;
+  const ini  = document.getElementById('dtInicio').value;
+  const fim  = document.getElementById('dtFim').value;
   saveFilters();
-  const d1    = ini ? new Date(ini + 'T00:00:00') : null;
-  const d2    = fim ? new Date(fim + 'T00:00:00') : null;
+  const d1   = ini ? new Date(ini + 'T00:00:00') : null;
+  const d2   = fim ? new Date(fim + 'T00:00:00') : null;
 
-  // Filtrar saídas (AP) — banco/conta só se aplica aqui
+  // Filtrar saídas (AP) — banco/conta multi-select
   const saidas = ALL_AP.filter(r => {
     if (d1 || d2) {
       const rd = parseDate(r.data);
       if (d1 && rd < d1) return false;
       if (d2 && rd > d2) return false;
     }
-    return (!emp   || r.empresa === emp) &&
-           (!obra  || r.obra    === obra) &&
-           (!banco || r.banco   === banco) &&
-           (!conta || r.conta   === conta) &&
+    return (!emp || r.empresa === emp) &&
+           (!obra || r.obra === obra) &&
+           (selectedBancos.length === 0 || selectedBancos.includes(r.banco)) &&
+           (selectedContas.length === 0 || selectedContas.includes(r.conta)) &&
            (vis === 'todos' ||
             (vis === 'realizado'  && r.origem === 'Pago') ||
             (vis === 'projetado'  && (r.origem === 'A Confirmar' || r.origem === 'Emissao')));
   });
 
-  // Filtrar entradas (Receitas)
+  // Filtrar entradas (Receitas) — banco/conta multi-select
   const entradas = ALL_REC.filter(r => {
     if (d1 || d2) {
       const rd = parseDate(r.data);
@@ -735,7 +840,9 @@ function recalcular() {
       if (d2 && rd > d2) return false;
     }
     return (!emp  || r.empresa === emp) &&
-           (!obra || r.obra    === obra) &&
+           (!obra || r.obra === obra) &&
+           (selectedBancos.length === 0 || selectedBancos.includes(r.banco)) &&
+           (selectedContas.length === 0 || selectedContas.includes(r.conta)) &&
            (vis === 'todos' ||
             (vis === 'realizado'  && r.status === 'Recebida') ||
             (vis === 'projetado'  && r.status === 'A Receber'));
@@ -765,40 +872,64 @@ function recalcular() {
              recebidas: byDate[d].rec, a_receber: byDate[d].ar, emissao: byDate[d].emi, a_pagar: byDate[d].ap };
   });
 
-  // Agregar saldo bancário real por data
-  const saldoFiltrado = ALL_SALDO.filter(r => {
-    if (d1 || d2) {
-      const rd = parseDate(r.data);
-      if (d1 && rd < d1) return false;
-      if (d2 && rd > d2) return false;
-    }
-    return !emp || r.empresa === emp;
+  // ── Saldo bancário per-account com forward-fill ──
+  // Filtra ALL_SALDO por empresa + bancos/contas (SEM filtro de data, para forward-fill correto)
+  const saldoForCalc = ALL_SALDO.filter(r =>
+    (!emp || r.empresa === emp) &&
+    (selectedBancos.length === 0 || selectedBancos.includes(r.banco)) &&
+    (selectedContas.length === 0 || selectedContas.includes(r.conta))
+  );
+
+  // Timeline por conta: "empresa|banco|conta" -> [{dateObj, saldo}] ordenado
+  const accountTimelines = {};
+  saldoForCalc.forEach(r => {
+    const key = `${r.empresa}|${r.banco}|${r.conta}`;
+    if (!accountTimelines[key]) accountTimelines[key] = [];
+    accountTimelines[key].push({ dateObj: parseDate(r.data), saldo: r.saldo });
   });
-  const saldoByDate = {};
-  saldoFiltrado.forEach(r => {
-    saldoByDate[r.data] = (saldoByDate[r.data] || 0) + r.saldo;
-  });
-  // Forward-fill: dias sem dado usam o último saldo conhecido
-  let ultimoSaldo = null;
-  diasData = diasData.map(d => {
-    if (saldoByDate[d.data] !== undefined) ultimoSaldo = saldoByDate[d.data];
-    return { ...d, saldo_banco: ultimoSaldo };
-  });
-  // Saldo anterior do primeiro dia: último saldo bancário disponível ANTES do período
+  Object.values(accountTimelines).forEach(arr => arr.sort((a, b) => a.dateObj - b.dateObj));
+
+  const acctKeys = Object.keys(accountTimelines);
+  const acctCurrent = {};   // key -> último saldo conhecido
+  const acctPointers = {};  // key -> índice na timeline
+  acctKeys.forEach(k => { acctCurrent[k] = null; acctPointers[k] = 0; });
+
+  // Avança pointers até targetDate e retorna soma dos últimos saldos de cada conta
+  function computeSaldoBanco(targetDateObj) {
+    acctKeys.forEach(k => {
+      const tl = accountTimelines[k];
+      while (acctPointers[k] < tl.length && tl[acctPointers[k]].dateObj <= targetDateObj) {
+        acctCurrent[k] = tl[acctPointers[k]].saldo;
+        acctPointers[k]++;
+      }
+    });
+    let total = 0, hasAny = false;
+    acctKeys.forEach(k => { if (acctCurrent[k] !== null) { total += acctCurrent[k]; hasAny = true; } });
+    return hasAny ? total : null;
+  }
+
+  // saldoPrimeiroDia: soma dos últimos saldos de cada conta ANTES do primeiro dia do período
   let saldoPrimeiroDia = null;
   if (diasData.length > 0) {
-    const primeiraData = parseDate(diasData[0].data);
-    const anteriores = ALL_SALDO
-      .filter(r => (!emp || r.empresa === emp) && parseDate(r.data) < primeiraData)
-      .sort((a, b) => compareDates(b.data, a.data));  // mais recente primeiro
-    if (anteriores.length > 0) {
-      const dataRef = anteriores[0].data;
-      saldoPrimeiroDia = anteriores
-        .filter(r => r.data === dataRef)
-        .reduce((s, r) => s + r.saldo, 0);
-    }
+    const firstDateObj = parseDate(diasData[0].data);
+    const dayBefore = new Date(firstDateObj); dayBefore.setDate(dayBefore.getDate() - 1);
+    let total = 0, hasAny = false;
+    acctKeys.forEach(k => {
+      const tl = accountTimelines[k];
+      for (let i = tl.length - 1; i >= 0; i--) {
+        if (tl[i].dateObj <= dayBefore) { total += tl[i].saldo; hasAny = true; break; }
+      }
+    });
+    saldoPrimeiroDia = hasAny ? total : null;
   }
-  // Saldo anterior = saldo_banco do dia anterior (ou saldo real para o primeiro dia)
+
+  // Computar saldo_banco para cada dia (diasData já está ordenado por data)
+  diasData = diasData.map(d => ({
+    ...d,
+    saldo_banco: computeSaldoBanco(parseDate(d.data)),
+  }));
+
+  // Saldo anterior = saldo_banco do dia anterior, ou saldoPrimeiroDia para o primeiro dia
   diasData = diasData.map((d, i) => ({
     ...d,
     saldo_anterior: i > 0 ? diasData[i - 1].saldo_banco : saldoPrimeiroDia,
@@ -822,8 +953,8 @@ function resetFiltros() {
   document.getElementById('gEmpresa').value = '';
   document.getElementById('gObra').value    = '';
   document.getElementById('gVis').value     = 'todos';
-  document.getElementById('gBanco').value   = '';
-  document.getElementById('gConta').value   = '';
+  selectedBancos = [];
+  selectedContas = [];
   recalcular();
 }
 
@@ -857,30 +988,18 @@ function populateFilters(entradas, saidas) {
   });
   if (obras.includes(curObra)) selObra.value = curObra;
 
-  // Banco (from AP data)
-  const bancos = [...new Set(ALL_AP.map(r => r.banco).filter(Boolean))].sort();
-  const selBanco = document.getElementById('gBanco');
-  const curBanco = selBanco.value;
-  selBanco.innerHTML = '<option value="">Todos</option>';
-  bancos.forEach(b => {
-    const o = document.createElement('option');
-    o.value = b; o.textContent = b;
-    selBanco.appendChild(o);
-  });
-  if (bancos.includes(curBanco)) selBanco.value = curBanco;
+  // Banco (multi-select, de todas as fontes: AP + Receitas + Saldo)
+  const allData = [...ALL_AP, ...ALL_REC, ...ALL_SALDO];
+  const baseForBanco = emp ? allData.filter(r => r.empresa === emp) : allData;
+  const bancos = [...new Set(baseForBanco.map(r => r.banco).filter(Boolean))].sort();
+  populateMultiDropdown('gBanco', bancos);
 
-  // Conta (filtrada pelo banco selecionado)
-  const baseConta = curBanco ? ALL_AP.filter(r => r.banco === curBanco) : ALL_AP;
-  const contas = [...new Set(baseConta.map(r => r.conta).filter(Boolean))].sort();
-  const selConta = document.getElementById('gConta');
-  const curConta = selConta.value;
-  selConta.innerHTML = '<option value="">Todas</option>';
-  contas.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c; o.textContent = c;
-    selConta.appendChild(o);
-  });
-  if (contas.includes(curConta)) selConta.value = curConta;
+  // Conta (multi-select, filtrada pelos bancos selecionados)
+  const baseForConta = selectedBancos.length > 0
+    ? baseForBanco.filter(r => selectedBancos.includes(r.banco))
+    : baseForBanco;
+  const contas = [...new Set(baseForConta.map(r => r.conta).filter(Boolean))].sort();
+  populateMultiDropdown('gConta', contas);
 }
 
 // ─────────────────────────────────
@@ -1252,10 +1371,14 @@ function setDonutMode(mode) {
 
   const filteredAP  = ALL_AP.filter(r =>
     (!emp || r.empresa===emp) && (!obra || r.obra===obra) &&
+    (selectedBancos.length===0 || selectedBancos.includes(r.banco)) &&
+    (selectedContas.length===0 || selectedContas.includes(r.conta)) &&
     (vis==='todos'||(vis==='realizado'&&r.origem==='Pago')||(vis==='projetado'&&(r.origem==='A Confirmar'||r.origem==='Emissao')))
   );
   const filteredREC = ALL_REC.filter(r =>
     (!emp || r.empresa===emp) && (!obra || r.obra===obra) &&
+    (selectedBancos.length===0 || selectedBancos.includes(r.banco)) &&
+    (selectedContas.length===0 || selectedContas.includes(r.conta)) &&
     (vis==='todos'||(vis==='realizado'&&r.status==='Recebida')||(vis==='projetado'&&r.status==='A Receber'))
   );
   renderDonut(filteredREC, filteredAP);
