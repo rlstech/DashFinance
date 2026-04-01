@@ -29,6 +29,12 @@ jobs:
           push: true
           tags: ghcr.io/rlstech/dashfinance:latest
 
-      - name: Redeploy no Portainer
-        run: |
-          curl -s -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
+      - name: Redeploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            docker pull ghcr.io/rlstech/dashfinance:latest
+            docker service update --image ghcr.io/rlstech/dashfinance:latest --with-registry-auth uaudash_app
