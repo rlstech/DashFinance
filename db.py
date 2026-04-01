@@ -117,6 +117,7 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
         UNION ALL
 
         -- Recebidas via VWBI_Receitas (empresas cobertas — valores com correção)
+        -- Banco/conta obtidos via Recebidas → RecebePgto (BancoDep/ContaDep)
         SELECT
             CASE v.Empresa
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -131,9 +132,19 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             CONVERT(VARCHAR(10), v.Data, 103) AS DataVenc,
             v.[Valor recebido] AS Valor,
             'Recebida' AS Status,
-            '' AS Banco,
-            '' AS Conta
+            ISNULL(CAST(rp.BancoDep_Rpg AS VARCHAR), '') AS Banco,
+            ISNULL(rp.ContaDep_Rpg, '') AS Conta
         FROM VWBI_Receitas v
+        LEFT JOIN Recebidas rec
+            ON  rec.Empresa_rec = v.Empresa
+            AND rec.NumVend_Rec  = v.[Numero Venda]
+            AND rec.Obra_Rec     = v.Obra
+            AND rec.NumParc_Rec  = v.[Numero parcela]
+            AND rec.Data_Rec     = v.Data
+            AND rec.Status_Rec   = 1
+        LEFT JOIN RecebePgto rp
+            ON  rp.Empresa_rpg  = rec.Empresa_rec
+            AND rp.NumReceb_Rpg = rec.NumReceb_Rec
         WHERE v.StatusPL = 'REALIZADO'
           AND v.[Valor recebido] > 0
           AND v.Data BETWEEN %s AND %s
@@ -141,6 +152,7 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
         UNION ALL
 
         -- Recebidas via tabela Recebidas (empresas não cobertas pela VWBI)
+        -- Banco/conta via RecebePgto (NumeroBanco_rec tem cobertura <2%)
         SELECT
             CASE r.Empresa_rec
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -155,10 +167,13 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             CONVERT(VARCHAR(10), r.DataVenci_Rec, 103) AS DataVenc,
             r.ValorConf_Rec AS Valor,
             'Recebida' AS Status,
-            ISNULL(CAST(r.NumeroBanco_rec AS VARCHAR), '') AS Banco,
-            ISNULL(r.ContaBanco_rec, '') AS Conta
+            ISNULL(CAST(rp.BancoDep_Rpg AS VARCHAR), '') AS Banco,
+            ISNULL(rp.ContaDep_Rpg, '') AS Conta
         FROM Recebidas r
         LEFT JOIN Pessoas p ON p.cod_pes = r.Cliente_Rec
+        LEFT JOIN RecebePgto rp
+            ON  rp.Empresa_rpg  = r.Empresa_rec
+            AND rp.NumReceb_Rpg = r.NumReceb_Rec
         WHERE r.Status_Rec = 1
           AND r.Data_Rec BETWEEN %s AND %s
           AND r.Empresa_rec NOT IN (SELECT DISTINCT Empresa FROM VWBI_Receitas)
