@@ -7,6 +7,12 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.uaudash-api.rule=Host(`dash.railton.eu.org`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.uaudash-api.entrypoints=websecure"
+        - "traefik.http.routers.uaudash-api.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.uaudash-api.loadbalancer.server.port=8000"
     environment:
       - DB_HOST=192.168.1.8
       - DB_PORT=62311
@@ -34,11 +40,6 @@ services:
         - "traefik.http.routers.uaudash.entrypoints=websecure"
         - "traefik.http.routers.uaudash.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.uaudash.loadbalancer.server.port=80"
-        - "traefik.http.routers.uaudash-api.rule=Host(`dash.railton.eu.org`) && PathPrefix(`/api`)"
-        - "traefik.http.routers.uaudash-api.entrypoints=websecure"
-        - "traefik.http.routers.uaudash-api.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.uaudash-api.service=uaudash-backend"
-        - "traefik.http.services.uaudash-backend.loadbalancer.server.port=8000"
     networks:
       - network_public
       - dashfinance_internal
