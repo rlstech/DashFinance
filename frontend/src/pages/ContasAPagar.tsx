@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { createColumnHelper } from '@tanstack/react-table'
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { FilterBar } from '@/components/filters/FilterBar'
@@ -40,7 +40,7 @@ const columns = [
     cell: (info) => {
       const origem = info.getValue()
       const variant =
-        origem === 'Emissao' ? 'default' : origem === 'Pago' ? 'secondary' : 'outline'
+        origem === 'Emissao' ? 'default' : origem === 'Pago' ? 'success' : 'outline'
       return <Badge variant={variant}>{origem}</Badge>
     },
   }),
@@ -281,7 +281,7 @@ export default function ContasAPagar() {
           <CardContent>
             <DataTable
               data={filteredData}
-              columns={columns}
+              columns={columns as ColumnDef<APRecord, unknown>[]}
               searchPlaceholder="Buscar fornecedor, empresa..."
             />
           </CardContent>

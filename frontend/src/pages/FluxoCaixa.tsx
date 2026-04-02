@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { createColumnHelper } from '@tanstack/react-table'
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { FilterBar } from '@/components/filters/FilterBar'
@@ -279,7 +279,7 @@ export default function FluxoCaixa() {
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Exportar</Button>
           </CardHeader>
           <CardContent>
-            <DataTable data={diasData} columns={columns} searchPlaceholder="Buscar data..." />
+            <DataTable data={diasData} columns={columns as ColumnDef<DiaData, unknown>[]} searchPlaceholder="Buscar data..." />
           </CardContent>
         </Card>
       </div>

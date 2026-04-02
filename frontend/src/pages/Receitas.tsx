@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { createColumnHelper } from '@tanstack/react-table'
+import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { FilterBar } from '@/components/filters/FilterBar'
@@ -184,7 +184,7 @@ export default function Receitas() {
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Exportar</Button>
           </CardHeader>
           <CardContent>
-            <DataTable data={filtered} columns={columns} searchPlaceholder="Buscar cliente, obra..." />
+            <DataTable data={filtered} columns={columns as ColumnDef<ReceitaRecord, unknown>[]} searchPlaceholder="Buscar cliente, obra..." />
           </CardContent>
         </Card>
       </div>
