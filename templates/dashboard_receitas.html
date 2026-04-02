@@ -830,8 +830,8 @@ function recalcular() {
     if (emp    && r.empresa !== emp)    return false;
     if (obra   && r.obra    !== obra)   return false;
     if (status && r.status  !== status) return false;
-    if (selectedBancos.length > 0 && !selectedBancos.includes(r.banco)) return false;
-    if (selectedContas.length > 0 && !selectedContas.includes(r.conta)) return false;
+    if (selectedBancos.length > 0 && r.banco && !selectedBancos.includes(r.banco)) return false;
+    if (selectedContas.length > 0 && r.conta && !selectedContas.includes(r.conta)) return false;
     return true;
   });
   currentPage = 1;
@@ -894,14 +894,18 @@ function populateFilters() {
   });
   if (obras.includes(curObra)) selObra.value = curObra;
 
-  // Banco (multi-select)
-  const bancos = [...new Set(ALL_DATA.map(r => r.banco).filter(Boolean))].sort();
+  // Banco (multi-select) — filtrado pela empresa/obra selecionada
+  const baseForBanco = ALL_DATA.filter(r =>
+    (!curEmp  || r.empresa === curEmp) &&
+    (!curObra || r.obra    === curObra)
+  );
+  const bancos = [...new Set(baseForBanco.map(r => r.banco).filter(Boolean))].sort();
   populateMultiDropdown('gBanco', bancos);
 
-  // Conta (multi-select, filtrada pelos bancos selecionados)
+  // Conta (multi-select, filtrada pelos bancos selecionados + empresa/obra)
   const baseConta = selectedBancos.length > 0
-    ? ALL_DATA.filter(r => selectedBancos.includes(r.banco))
-    : ALL_DATA;
+    ? baseForBanco.filter(r => selectedBancos.includes(r.banco))
+    : baseForBanco;
   const contas = [...new Set(baseConta.map(r => r.conta).filter(Boolean))].sort();
   populateMultiDropdown('gConta', contas);
 
