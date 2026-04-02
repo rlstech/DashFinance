@@ -117,10 +117,13 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS DataVenc,
             cr.Valor_Prc AS Valor,
             'A Receber' AS Status,
-            ISNULL(CAST(cr.NumeroBanco_prc AS VARCHAR), '') AS Banco,
-            ISNULL(cr.ContaBanco_prc, '') AS Conta
+            ISNULL(CAST(pcb.NumeroBanco_pcb AS VARCHAR), ISNULL(CAST(cr.NumeroBanco_prc AS VARCHAR), '')) AS Banco,
+            ISNULL(pcb.ContaBanco_pcb, ISNULL(cr.ContaBanco_prc, '')) AS Conta
         FROM ContasReceber cr
         LEFT JOIN Pessoas p ON p.cod_pes = cr.Cliente_Prc
+        LEFT JOIN ParametroCobranca pcb
+            ON pcb.Empresa_pcb = cr.Empresa_Prc
+           AND pcb.Num_pcb = cr.NumPcb_Prc
         WHERE cr.Status_Prc = 0
           AND ISNULL(cr.DataPror_Prc, cr.Data_Prc) BETWEEN %s AND %s
 
