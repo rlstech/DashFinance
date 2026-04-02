@@ -94,6 +94,18 @@ body { font-family: var(--font-family); background: var(--color-background); col
 .gf-select { min-width: 140px; cursor: pointer; }
 .gf-date  { min-width: 130px; }
 .gf-select:focus, .gf-date:focus { border-color: var(--color-primary-light); }
+.gf-multiselect { position: relative; }
+.gf-ms-trigger { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 7px 10px; font-size: var(--text-sm); color: var(--color-text-primary); background: var(--color-background); font-family: var(--font-family); outline: none; transition: border-color 0.15s; height: 34px; min-width: 140px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px; user-select: none; }
+.gf-ms-trigger:hover, .gf-ms-trigger.open { border-color: var(--color-primary-light); }
+.gf-ms-trigger svg { width: 12px; height: 12px; color: var(--color-text-muted); flex-shrink: 0; transition: transform 0.15s; }
+.gf-ms-trigger.open svg { transform: rotate(180deg); }
+.gf-ms-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gf-ms-dropdown { position: absolute; top: calc(100% + 4px); left: 0; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); box-shadow: var(--shadow-elevated); z-index: 50; max-height: 220px; overflow-y: auto; min-width: 180px; display: none; }
+.gf-ms-dropdown.open { display: block; }
+.gf-ms-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; cursor: pointer; font-size: var(--text-sm); color: var(--color-text-primary); transition: background 0.1s; }
+.gf-ms-item:hover { background: var(--color-primary-pale); }
+.gf-ms-item input[type="checkbox"] { accent-color: var(--color-primary); cursor: pointer; }
+.gf-ms-item.all-item { border-bottom: 1px solid var(--color-border); font-weight: 600; }
 .gf-period { display: flex; align-items: flex-end; gap: 6px; }
 .gf-period-sep { font-size: var(--text-sm); color: var(--color-text-muted); padding-bottom: 8px; }
 .gf-actions { display: flex; gap: 6px; margin-left: auto; align-items: flex-end; }
@@ -419,15 +431,23 @@ td { padding: 10px 14px; vertical-align: middle; }
     </div>
     <div class="gf-group">
       <span class="gf-label">Banco</span>
-      <select class="gf-select" id="gBanco" onchange="recalcular()">
-        <option value="">Todos</option>
-      </select>
+      <div class="gf-multiselect" id="gBancoWrap">
+        <div class="gf-ms-trigger" onclick="toggleMultiDropdown('gBanco', event)">
+          <span class="gf-ms-text" id="gBancoText">Todos</span>
+          <i data-lucide="chevron-down"></i>
+        </div>
+        <div class="gf-ms-dropdown" id="gBancoDropdown"></div>
+      </div>
     </div>
     <div class="gf-group">
       <span class="gf-label">Conta</span>
-      <select class="gf-select" id="gConta" onchange="recalcular()">
-        <option value="">Todas</option>
-      </select>
+      <div class="gf-multiselect" id="gContaWrap">
+        <div class="gf-ms-trigger" onclick="toggleMultiDropdown('gConta', event)">
+          <span class="gf-ms-text" id="gContaText">Todas</span>
+          <i data-lucide="chevron-down"></i>
+        </div>
+        <div class="gf-ms-dropdown" id="gContaDropdown"></div>
+      </div>
     </div>
     <div class="gf-actions">
       <button class="gf-btn-apply" onclick="aplicarFiltros()"><i data-lucide="zap"></i> Aplicar</button>
@@ -612,6 +632,84 @@ td { padding: 10px 14px; vertical-align: middle; }
 let ALL_DATA = []
 
 // ─────────────────────────────────
+// MULTI-SELECT ESTADO
+// ─────────────────────────────────
+let selectedBancos = [];
+let selectedContas = [];
+
+function toggleMultiDropdown(id, event) {
+  event.stopPropagation();
+  const dd = document.getElementById(id + 'Dropdown');
+  const trigger = dd.previousElementSibling;
+  const wasOpen = dd.classList.contains('open');
+  document.querySelectorAll('.gf-ms-dropdown.open').forEach(d => { d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); });
+  if (!wasOpen) { dd.classList.add('open'); trigger.classList.add('open'); }
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.gf-ms-dropdown.open').forEach(d => { d.classList.remove('open'); d.previousElementSibling.classList.remove('open'); });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.gf-ms-dropdown').forEach(dd => dd.addEventListener('click', e => e.stopPropagation()));
+});
+
+function toggleSelection(id, val) {
+  const arr = id === 'gBanco' ? selectedBancos : selectedContas;
+  const idx = arr.indexOf(val);
+  if (idx >= 0) arr.splice(idx, 1); else arr.push(val);
+  renderMultiDropdown(id);
+  recalcular();
+}
+
+function clearSelection(id) {
+  if (id === 'gBanco') selectedBancos = []; else selectedContas = [];
+  renderMultiDropdown(id);
+  recalcular();
+}
+
+function renderMultiDropdown(id) {
+  const selected = id === 'gBanco' ? selectedBancos : selectedContas;
+  const allLabel = id === 'gBanco' ? 'Todos' : 'Todas';
+  const dd = document.getElementById(id + 'Dropdown');
+  dd.querySelectorAll('.gf-ms-item:not(.all-item)').forEach(item => {
+    const cb = item.querySelector('input');
+    if (cb) cb.checked = selected.includes(cb.value);
+  });
+  const allCb = dd.querySelector('.all-item input');
+  if (allCb) allCb.checked = selected.length === 0;
+  const textEl = document.getElementById(id + 'Text');
+  if (selected.length === 0) textEl.textContent = allLabel;
+  else if (selected.length === 1) textEl.textContent = selected[0];
+  else textEl.textContent = selected.length + ' selecionados';
+}
+
+function populateMultiDropdown(id, options) {
+  const selected = id === 'gBanco' ? selectedBancos : selectedContas;
+  const allLabel = id === 'gBanco' ? 'Todos' : 'Todas';
+  const dd = document.getElementById(id + 'Dropdown');
+  dd.innerHTML = '';
+  const allItem = document.createElement('div');
+  allItem.className = 'gf-ms-item all-item';
+  allItem.innerHTML = `<input type="checkbox" ${selected.length === 0 ? 'checked' : ''}> ${allLabel}`;
+  allItem.onclick = () => clearSelection(id);
+  dd.appendChild(allItem);
+  options.forEach(val => {
+    const item = document.createElement('div');
+    item.className = 'gf-ms-item';
+    item.innerHTML = `<input type="checkbox" value="${val}" ${selected.includes(val) ? 'checked' : ''}> ${val}`;
+    item.onclick = () => toggleSelection(id, val);
+    dd.appendChild(item);
+  });
+  const textEl = document.getElementById(id + 'Text');
+  if (selected.length === 0) textEl.textContent = allLabel;
+  else if (selected.length === 1) textEl.textContent = selected[0];
+  else textEl.textContent = selected.length + ' selecionados';
+  if (id === 'gBanco') selectedBancos = selectedBancos.filter(v => options.includes(v));
+  else selectedContas = selectedContas.filter(v => options.includes(v));
+}
+
+// ─────────────────────────────────
 // ESTADO
 // ─────────────────────────────────
 let filteredData = [];
@@ -684,8 +782,8 @@ function saveFilters() {
     gEmpresa: document.getElementById('gEmpresa').value,
     gObra:    document.getElementById('gObra').value,
     gStatus:  document.getElementById('gStatus').value,
-    gBanco:   document.getElementById('gBanco').value,
-    gConta:   document.getElementById('gConta').value,
+    gBanco:   selectedBancos,
+    gConta:   selectedContas,
   }));
 }
 
@@ -696,7 +794,7 @@ function loadFilters() {
     if (f.dtInicio) document.getElementById('dtInicio').value = f.dtInicio;
     if (f.dtFim)    document.getElementById('dtFim').value    = f.dtFim;
     if (f.gStatus !== undefined) document.getElementById('gStatus').value = f.gStatus;
-    ['gEmpresa', 'gObra', 'gBanco', 'gConta'].forEach(id => {
+    ['gEmpresa', 'gObra'].forEach(id => {
       const val = f[id]; if (!val) return;
       const sel = document.getElementById(id);
       if ([...sel.options].every(o => o.value !== val)) {
@@ -705,6 +803,8 @@ function loadFilters() {
       }
       sel.value = val;
     });
+    if (f.gBanco) selectedBancos = Array.isArray(f.gBanco) ? f.gBanco : [f.gBanco];
+    if (f.gConta) selectedContas = Array.isArray(f.gConta) ? f.gConta : [f.gConta];
   } catch(e) {}
 }
 
@@ -715,8 +815,6 @@ function recalcular() {
   const emp    = document.getElementById('gEmpresa').value;
   const obra   = document.getElementById('gObra').value;
   const status = document.getElementById('gStatus').value;
-  const banco  = document.getElementById('gBanco').value;
-  const conta  = document.getElementById('gConta').value;
   const ini    = document.getElementById('dtInicio').value;
   const fim    = document.getElementById('dtFim').value;
   saveFilters();
@@ -732,8 +830,8 @@ function recalcular() {
     if (emp    && r.empresa !== emp)    return false;
     if (obra   && r.obra    !== obra)   return false;
     if (status && r.status  !== status) return false;
-    if (banco  && r.banco   !== banco)  return false;
-    if (conta  && r.conta   !== conta)  return false;
+    if (selectedBancos.length > 0 && !selectedBancos.includes(r.banco)) return false;
+    if (selectedContas.length > 0 && !selectedContas.includes(r.conta)) return false;
     return true;
   });
   currentPage = 1;
@@ -760,8 +858,8 @@ function resetFiltros() {
   document.getElementById('gEmpresa').value = '';
   document.getElementById('gObra').value    = '';
   document.getElementById('gStatus').value  = '';
-  document.getElementById('gBanco').value   = '';
-  document.getElementById('gConta').value   = '';
+  selectedBancos = [];
+  selectedContas = [];
   recalcular();
 }
 
@@ -796,30 +894,16 @@ function populateFilters() {
   });
   if (obras.includes(curObra)) selObra.value = curObra;
 
-  // Banco
-  const selBanco = document.getElementById('gBanco');
-  const curBanco = selBanco.value;
+  // Banco (multi-select)
   const bancos = [...new Set(ALL_DATA.map(r => r.banco).filter(Boolean))].sort();
-  selBanco.innerHTML = '<option value="">Todos</option>';
-  bancos.forEach(b => {
-    const o = document.createElement('option');
-    o.value = b; o.textContent = b;
-    selBanco.appendChild(o);
-  });
-  if (bancos.includes(curBanco)) selBanco.value = curBanco;
+  populateMultiDropdown('gBanco', bancos);
 
-  // Conta (filtrada pelo banco selecionado)
-  const selConta = document.getElementById('gConta');
-  const curConta = selConta.value;
-  const baseConta = curBanco ? ALL_DATA.filter(r => r.banco === curBanco) : ALL_DATA;
+  // Conta (multi-select, filtrada pelos bancos selecionados)
+  const baseConta = selectedBancos.length > 0
+    ? ALL_DATA.filter(r => selectedBancos.includes(r.banco))
+    : ALL_DATA;
   const contas = [...new Set(baseConta.map(r => r.conta).filter(Boolean))].sort();
-  selConta.innerHTML = '<option value="">Todas</option>';
-  contas.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c; o.textContent = c;
-    selConta.appendChild(o);
-  });
-  if (contas.includes(curConta)) selConta.value = curConta;
+  populateMultiDropdown('gConta', contas);
 
   // Tipo (tabela) — baseado em filteredData
   const selTipo = document.getElementById('filtTipo');
