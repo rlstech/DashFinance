@@ -78,8 +78,8 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
             'obra':      r['Obra'] or '',
             'data':      r['Data'] or '',
             'fornecedor': (r['Fornecedor'] or '').strip(),
-            'banco':     r['Banco'] or '',
-            'conta':     r['Conta'] or '',
+            'banco':     str(r['Banco'] or '').strip(),
+            'conta':     str(r['Conta'] or '').strip(),
             'categoria': r['Categoria'] or '',
             'valor':     float(r['Valor'] or 0),
             'origem':    r['Origem'] or '',
@@ -201,8 +201,30 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
     ]
 
 
+def _get_saldo_conta_col():
+    """Descobre o nome da coluna de conta corrente na SaldoConta."""
+    with _conn() as conn:
+        cur = conn.cursor(as_dict=True)
+        cur.execute("""
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'SaldoConta' AND COLUMN_NAME LIKE %s
+        """, ('%onta%',))
+        cols = [r['COLUMN_NAME'] for r in cur.fetchall()]
+    # Excluir colunas que são de banco (ContaBanco) ou empresa
+    for c in cols:
+        if c.lower().startswith('conta') and 'banco' not in c.lower():
+            return c
+    return None
+
+_SALDO_CONTA_COL = None
+
 def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
-    sql = """
+    global _SALDO_CONTA_COL
+    if _SALDO_CONTA_COL is None:
+        _SALDO_CONTA_COL = _get_saldo_conta_col() or ''
+
+    conta_select = f"ISNULL({_SALDO_CONTA_COL}, '')" if _SALDO_CONTA_COL else "''"
+    sql = f"""
     SELECT
         CASE Empresa_sdcc
             WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -210,7 +232,7 @@ def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
             WHEN 6 THEN 'CONSÓRCIO HMSJ'
         END AS Empresa,
         CAST(Banco_sdcc AS VARCHAR) AS Banco,
-        ContaCorr_sdcc AS Conta,
+        {conta_select} AS Conta,
         CONVERT(varchar, Data_sdcc, 103) AS Data,
         Saldo_sdcc AS Saldo
     FROM SaldoConta
