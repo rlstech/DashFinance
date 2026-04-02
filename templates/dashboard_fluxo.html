@@ -841,8 +841,8 @@ function recalcular() {
     }
     return (!emp  || r.empresa === emp) &&
            (!obra || r.obra === obra) &&
-           (selectedBancos.length === 0 || selectedBancos.includes(r.banco)) &&
-           (selectedContas.length === 0 || selectedContas.includes(r.conta)) &&
+           (selectedBancos.length === 0 || !r.banco || selectedBancos.includes(r.banco)) &&
+           (selectedContas.length === 0 || !r.conta || selectedContas.includes(r.conta)) &&
            (vis === 'todos' ||
             (vis === 'realizado'  && r.status === 'Recebida') ||
             (vis === 'projetado'  && r.status === 'A Receber'));
@@ -1377,8 +1377,8 @@ function setDonutMode(mode) {
   );
   const filteredREC = ALL_REC.filter(r =>
     (!emp || r.empresa===emp) && (!obra || r.obra===obra) &&
-    (selectedBancos.length===0 || selectedBancos.includes(r.banco)) &&
-    (selectedContas.length===0 || selectedContas.includes(r.conta)) &&
+    (selectedBancos.length===0 || !r.banco || selectedBancos.includes(r.banco)) &&
+    (selectedContas.length===0 || !r.conta || selectedContas.includes(r.conta)) &&
     (vis==='todos'||(vis==='realizado'&&r.status==='Recebida')||(vis==='projetado'&&r.status==='A Receber'))
   );
   renderDonut(filteredREC, filteredAP);
