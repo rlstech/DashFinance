@@ -24,11 +24,18 @@ def _read_smb(unc_path: str, username: str = "", password: str = "") -> io.Bytes
     from smb.SMBConnection import SMBConnection
 
     server, share, remote_path = _parse_unc(unc_path)
+    
+    # Suporte nativo ao formato DOMINIO\usuario muito usado no Windows Server
+    domain = ""
+    if "\\" in username:
+        domain, username = username.split("\\", 1)
+
     conn = SMBConnection(
         username,
         password,
         "dashfinance",
         server,
+        domain=domain,
         use_ntlm_v2=True,
         is_direct_tcp=True,
     )
