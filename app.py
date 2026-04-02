@@ -84,11 +84,22 @@ def page_fluxo():
 @app.route('/api/sync')
 def api_sync():
     """Busca AP + Receitas do banco (range completo), armazena em cache e retorna metadados."""
+    import traceback
     de  = '2020-01-01'
     ate = '2030-12-31'
-    _cache['ap']          = get_ap(de, ate)
-    _cache['receitas']    = get_receitas(de, ate)
-    _cache['saldo_banco'] = get_saldo_banco(de, ate)
+    errors = []
+    try:
+        _cache['ap'] = get_ap(de, ate)
+    except Exception as e:
+        errors.append(f'ap: {e}')
+    try:
+        _cache['receitas'] = get_receitas(de, ate)
+    except Exception as e:
+        errors.append(f'receitas: {e}')
+    try:
+        _cache['saldo_banco'] = get_saldo_banco(de, ate)
+    except Exception as e:
+        errors.append(f'saldo_banco: {e}')
     _cache['de']          = de
     _cache['ate']         = ate
     _cache['last_sync']   = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -99,10 +110,12 @@ def api_sync():
     except Exception:
         pass
     return jsonify({
-        'ok':             True,
+        'ok':             len(errors) == 0,
+        'errors':         errors,
         'last_sync':      _cache['last_sync'],
         'count_ap':       len(_cache['ap']),
         'count_receitas': len(_cache['receitas']),
+        'count_saldo':    len(_cache['saldo_banco']),
     })
 
 @app.route('/api/status')

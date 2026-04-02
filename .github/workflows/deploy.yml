@@ -38,5 +38,11 @@ jobs:
           script: |
             docker pull ghcr.io/rlstech/dashfinance:latest
             docker service update --image ghcr.io/rlstech/dashfinance:latest --with-registry-auth --force uaudash_app
-            sleep 15
-            curl -sf https://dash.railton.eu.org/api/sync || echo "Sync request failed (app may still be starting)"
+            for i in 1 2 3 4 5; do
+              sleep 15
+              if curl -sf --max-time 120 https://dash.railton.eu.org/api/sync > /dev/null 2>&1; then
+                echo "Sync completed successfully"
+                break
+              fi
+              echo "Sync attempt $i failed, retrying..."
+            done
