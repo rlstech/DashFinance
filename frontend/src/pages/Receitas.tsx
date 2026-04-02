@@ -65,8 +65,12 @@ export default function Receitas() {
       if (filters.empresa && r.empresa !== filters.empresa) return false
       if (filters.obra && r.obra !== filters.obra) return false
       if (filters.status && r.status !== filters.status) return false
-      if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
-      if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
+      if (filters.bancos.length > 0) {
+        if (r.banco && !filters.bancos.includes(r.banco)) return false
+      }
+      if (filters.contas.length > 0) {
+        if (r.conta && !filters.contas.includes(r.conta)) return false
+      }
       return true
     })
   }, [allData, filters])
