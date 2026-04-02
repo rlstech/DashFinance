@@ -1,5 +1,0 @@
-flask
-pymssql
-gunicorn
-openpyxl
-pysmb

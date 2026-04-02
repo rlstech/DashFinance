@@ -4,110 +4,109 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DashFinance is a Flask financial dashboard for UAU, monitoring Accounts Payable (AP), Revenues, and Cash Flow. It runs as a Docker Swarm service behind Traefik and connects to a Microsoft SQL Server.
-
-## Running Locally
-
-```bash
-pip install -r requirements.txt
-# Set REQUIRED env vars (no hardcoded defaults — app will crash without them)
-export DB_SERVER=192.168.1.8 DB_PORT=62311 DB_NAME=uau DB_USER=... DB_PASS=...
-# Optional: authentication (if not set, dashboard is open)
-export DASH_USER=admin DASH_PASS=my_password
-# Optional: automatic sync interval in minutes (default: 60, 0 to disable)
-export SYNC_INTERVAL_MIN=60
-python app.py            # dev server on :5000
-# or
-gunicorn --bind 0.0.0.0:5000 --workers 1 --threads 4 --timeout 120 app:app
-```
-
-After starting, trigger a data sync: `GET /api/sync`
+DashFinance is a financial dashboard for UAU, monitoring Accounts Payable (AP), Revenues, and Cash Flow. It runs as a Docker Swarm stack (3 services: backend, frontend, redis) behind Traefik and connects to a Microsoft SQL Server.
 
 ## Architecture
 
 ```
-Browser → Flask (app.py) → cache.json (persistent)
-                        ↕ on /api/sync + periodic auto-sync
-                    db.py → SQL Server (via parameterized queries)
+Browser → Nginx (frontend React SPA) → /api/* → FastAPI (backend) → Redis cache
+                                                                   ↕ on /api/sync
+                                                               queries.py → SQL Server
 ```
 
-**`app.py`** — Flask routes + cache layer + HTTP Basic Auth. On startup, loads `cache.json`; if empty, attempts a full sync from DB (non-fatal if DB unreachable). All `/api/*` endpoints serve from the in-memory `_cache` dict and persist to `cache.json` on sync. A background timer auto-syncs every `SYNC_INTERVAL_MIN` minutes. The sync date range is hardcoded to `2020-01-01` → `2030-12-31` in `_do_sync()`.
+**`backend/`** — FastAPI app (Python 3.12):
+- `app/main.py` — FastAPI app with CORS, lifespan (APScheduler + initial sync)
+- `app/config.py` — Pydantic BaseSettings (all env vars)
+- `app/api/` — routers: `financeiro.py` (data endpoints), `sync.py` (sync/status), `filters.py` (filter tree)
+- `app/services/database.py` — pymssql connection pool
+- `app/services/cache.py` — async Redis client
+- `app/services/queries.py` — **exact SQL queries** (get_ap, get_receitas, get_saldo_banco)
+- `app/services/sync.py` — sync_all() + APScheduler
+- `app/models/schemas.py` — Pydantic models
 
-**`cf_proxy/`** — Alternative connectivity option: a Python asyncio TCP proxy (`proxy.py`) that tunnels SQL Server connections through Cloudflare Access using service tokens (WebSocket). Used on the VPS when FortiGate VPN is not available. Configured via `CF_HOSTNAME`, `CF_ACCESS_CLIENT_ID`, `CF_ACCESS_CLIENT_SECRET`, and `LISTEN_PORT` env vars.
+**`frontend/`** — React 18 + Vite 5 + TypeScript SPA:
+- `src/App.tsx` — React Router v6 with QueryClientProvider
+- `src/pages/` — ContasAPagar, Receitas, FluxoCaixa, Configuracoes
+- `src/hooks/` — useFilters (Zustand), useFinanceiro (TanStack Query)
+- `src/components/` — layout (Sidebar, Header), filters (FilterBar, MultiSelect), charts (Timeline, Donut, CashFlow), tables (DataTable)
+- `src/types/index.ts` — TypeScript interfaces + EMPRESA_COLORS/ABBR constants
 
-**`db.py`** — All DB access via `pymssql` with **parameterized queries** (no f-strings). Three functions:
-- `get_ap(de, ate)` — queries `VwDesembolsoAPagar` + `Pessoas` + `CategoriasDeMovFin`
-- `get_receitas(de, ate)` — combines `ContasReceber`, `VWBI_Receitas`, `Recebidas`
-- `get_saldo_banco(de, ate)` — queries `SaldoConta`
+**`cf_proxy/`** — TCP proxy tunneling SQL Server via Cloudflare Access (used when FortiGate VPN is unavailable).
 
-**`templates/`** — Three Jinja2 dashboards (`dashboard_ap.html`, `dashboard_receitas.html`, `dashboard_fluxo.html`), all built with Chart.js 4.4.0 + Lucide icons + vanilla JS. Each fetches its data from `/api/*` on load.
+## Running Locally
 
-## Environment Variables
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+export DB_HOST=192.168.1.8 DB_PORT=62311 DB_NAME=uau DB_USER=... DB_PASSWORD=...
+export REDIS_URL=redis://localhost:6379/0
+uvicorn app.main:app --reload --port 8000
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev   # dev server on :5173, proxies /api → localhost:8000
+```
+
+## Environment Variables (backend)
 
 | Variable | Required | Description |
 |---|---|---|
-| `DB_SERVER` | ✅ | SQL Server host |
+| `DB_HOST` | ✅ | SQL Server host |
 | `DB_PORT` | ❌ (default: 62311) | SQL Server port |
 | `DB_NAME` | ✅ | Database name |
 | `DB_USER` | ✅ | Database username |
-| `DB_PASS` | ✅ | Database password |
-| `DASH_USER` | ❌ | HTTP Basic Auth username (empty = no auth) |
-| `DASH_PASS` | ❌ | HTTP Basic Auth password |
-| `SYNC_INTERVAL_MIN` | ❌ (default: 60) | Auto-sync interval in minutes (0 = disabled) |
-| `CACHE_FILE` | ❌ | Path to cache.json |
-| `PORT` | ❌ (default: 5000) | Flask port (dev server only) |
+| `DB_PASSWORD` | ✅ | Database password |
+| `REDIS_URL` | ❌ (default: redis://localhost:6379/0) | Redis connection URL |
+| `CORS_ORIGINS` | ❌ | JSON array of allowed origins |
+| `SYNC_INTERVAL_MINUTES` | ❌ (default: 60) | Auto-sync interval (0 = disabled) |
+| `SYNC_DATE_FROM` | ❌ (default: 2020-01-01) | Data range start |
+| `SYNC_DATE_TO` | ❌ (default: 2030-12-31) | Data range end |
 | `TZ` | ❌ | Timezone (default: America/Sao_Paulo) |
 
-> ⚠️ **Security**: DB credentials and auth credentials MUST be provided via environment variables or Docker secrets. Never hardcode credentials in source code.
+> **Important**: Configure `DB_USER`, `DB_PASSWORD` as environment variables in Portainer, NOT in `docker-compose.yml`.
 
 ## API Endpoints
 
 | Route | Description |
 |---|---|
-| `GET /api/sync` | Re-query DB, update and persist cache |
-| `GET /api/status` | Cache metadata (last sync time, date range, counts) |
-| `GET /api/ap` | Cached AP records |
-| `GET /api/receitas` | Cached revenue records |
-| `GET /api/saldo_banco` | Cached bank balances |
-
-All endpoints require HTTP Basic Auth when `DASH_USER` is configured.
+| `GET /api/sync` | Re-query DB, update Redis cache |
+| `GET /api/status` | Cache metadata (last sync, counts) |
+| `GET /api/ap` | AP records |
+| `GET /api/receitas` | Revenue records |
+| `GET /api/saldo_banco` | Bank balance records |
+| `GET /api/filters/tree` | Pre-computed filter tree (empresas, obras, bancos, contas) |
 
 ## Data Schemas
 
-**AP record** (`/api/ap`):
-```js
-{ empresa, obra, data, fornecedor, banco, conta, categoria, valor, origem }
-// origem: "A Confirmar" | "Emissao"
-```
+**AP record**: `{ empresa, obra, data, fornecedor, banco, conta, categoria, valor, origem }`
+- `origem`: `"A Confirmar" | "Emissao" | "Pago"`
 
-**Receitas record** (`/api/receitas`):
-```js
-{ empresa, obra, cliente, tipo, data, data_venc, valor, status }
-// data_venc: sempre usa data de prorrogação (DataPror_Prc / DataPror_Rec), nunca o vencimento original
-```
+**Receitas record**: `{ empresa, obra, cliente, tipo, data, data_venc, valor, status, banco, conta }`
+- `status`: `"Recebida" | "A Receber"`
 
-**Saldo record** (`/api/saldo_banco`):
-```js
-{ empresa, data, saldo }
-```
+**Saldo record**: `{ empresa, banco, conta, data, saldo }`
 
 ## Key Conventions
 
-- Currency is BRL; use `toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })`.
-- Dates in all API responses are `DD/MM/YYYY` — parse as day/month/year in JS.
-- Company IDs are integers in `db.py` but may appear as strings in legacy code. Canonical mapping: `{1: 'COMBRASEN', 3: 'DRESDEN', 4: 'TRUST', 5: 'GAMA 01', 6: 'CONSÓRCIO HMSJ'}`.
+- Currency is BRL; `formatCurrency()` in `frontend/src/lib/formatters.ts`.
+- Dates in API responses are `DD/MM/YYYY` — use `parseDate()` in formatters.ts to parse.
+- Company canonical mapping: `{1: 'COMBRASEN', 3: 'DRESDEN', 4: 'TRUST', 5: 'GAMA 01', 6: 'CONSÓRCIO HMSJ'}`.
 - SQL queries use parameterized placeholders (`%s`), never f-strings.
-- Single Gunicorn worker with threads to keep cache consistent in-memory.
+- **Banco filter semantics**: Fluxo de Caixa uses permissive filter (empty banco on receitas passes through); Receitas page uses strict filter.
 - No test suite, no linter.
 
 ## Deployment
 
-CI/CD: push to `master` → GitHub Actions builds and pushes `ghcr.io/rlstech/dashfinance:latest` → triggers Portainer webhook to redeploy the Swarm stack.
+CI/CD: push to `master` → GitHub Actions builds and pushes two images:
+- `ghcr.io/rlstech/dashfinance-backend:latest`
+- `ghcr.io/rlstech/dashfinance-frontend:latest`
 
-The app is publicly accessible at `https://dash.railton.eu.org` via Traefik (TLS via Let's Encrypt). Cache is stored in a persistent Docker volume mounted at `/cache`.
+Then SSH-deploys both services via `docker service update`.
 
-> **Important**: Configure `DB_USER`, `DB_PASS`, `DASH_USER`, and `DASH_PASS` as environment variables in Portainer, NOT in `docker-compose.yml`.
+The app is publicly accessible at `https://dash.railton.eu.org` via Traefik (TLS via Let's Encrypt).
 
 ## Legacy Scripts
 
-Legacy pre-Flask tools have been moved to `_legacy/`. These include `export_data.py`, `inject_data.py`, `query_ap.py`, `format_ap.py`, etc. They are kept for reference but are **not used by Flask**.
+`_legacy/` contains pre-Flask tools (`export_data.py`, `inject_data.py`, `query_ap.py`, etc.) kept for reference only.

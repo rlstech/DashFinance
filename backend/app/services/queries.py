@@ -1,26 +1,38 @@
+"""
+Queries SQL migradas de db.py — preservadas exatamente.
+Todas usam placeholders parametrizados (%s).
+"""
 import pymssql
-import os
+from app.services.database import get_db
 
-DB = dict(
-    server=os.environ['DB_SERVER'],
-    port=int(os.environ.get('DB_PORT', '62311')),
-    database=os.environ['DB_NAME'],
-    user=os.environ['DB_USER'],
-    password=os.environ['DB_PASS'],
-)
+EMPRESA_MAP = {1: "COMBRASEN", 3: "DRESDEN", 4: "TRUST", 5: "GAMA 01", 6: "CONSÓRCIO HMSJ"}
 
-EMPRESA_MAP = {1:'COMBRASEN', 3:'DRESDEN', 4:'TRUST', 5:'GAMA 01', 6:'CONSÓRCIO HMSJ'}
-
-def _conn():
-    return pymssql.connect(**DB)
+_SALDO_CONTA_COL: str | None = None
 
 
-def get_ap(de='2026-01-01', ate='2026-06-30'):
+def _get_saldo_conta_col() -> str | None:
+    """Descobre o nome da coluna de conta corrente na SaldoConta."""
+    with get_db() as conn:
+        cur = conn.cursor(as_dict=True)
+        cur.execute(
+            """
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'SaldoConta' AND COLUMN_NAME LIKE %s
+            """,
+            ("%onta%",),
+        )
+        cols = [r["COLUMN_NAME"] for r in cur.fetchall()]
+    for c in cols:
+        if c.lower().startswith("conta") and "banco" not in c.lower():
+            return c
+    return None
+
+
+def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
     sql = """
     SELECT Empresa, Obra, Data, Fornecedor, Banco, Conta, Categoria,
            SUM(Valor) AS Valor, Origem
     FROM (
-        -- A pagar: planejado (A Confirmar) e emitido (Emissao)
         SELECT
             CASE v.Empresa_des
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -44,7 +56,6 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
 
         UNION ALL
 
-        -- Pagos: efetivados (VwDesembolsoPago)
         SELECT
             CASE v.Empresa_des
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -68,31 +79,30 @@ def get_ap(de='2026-01-01', ate='2026-06-30'):
     GROUP BY Empresa, Obra, Data, Fornecedor, Banco, Conta, Categoria, Origem
     ORDER BY Data, Empresa, Obra
     """
-    with _conn() as conn:
+    with get_db() as conn:
         cur = conn.cursor(as_dict=True)
         cur.execute(sql, (de, ate, de, ate))
         rows = cur.fetchall()
     return [
         {
-            'empresa':   r['Empresa'] or '',
-            'obra':      r['Obra'] or '',
-            'data':      r['Data'] or '',
-            'fornecedor': (r['Fornecedor'] or '').strip(),
-            'banco':     str(r['Banco'] or '').strip(),
-            'conta':     str(r['Conta'] or '').strip(),
-            'categoria': r['Categoria'] or '',
-            'valor':     float(r['Valor'] or 0),
-            'origem':    r['Origem'] or '',
+            "empresa": r["Empresa"] or "",
+            "obra": r["Obra"] or "",
+            "data": r["Data"] or "",
+            "fornecedor": (r["Fornecedor"] or "").strip(),
+            "banco": str(r["Banco"] or "").strip(),
+            "conta": str(r["Conta"] or "").strip(),
+            "categoria": r["Categoria"] or "",
+            "valor": float(r["Valor"] or 0),
+            "origem": r["Origem"] or "",
         }
         for r in rows
     ]
 
 
-def get_receitas(de='2026-01-01', ate='2026-06-30'):
+def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
     sql = """
     SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status, Banco, Conta
     FROM (
-        -- Parcelas a receber (em aberto)
         SELECT
             CASE cr.Empresa_prc
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -116,8 +126,6 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
 
         UNION ALL
 
-        -- Recebidas via VWBI_Receitas (empresas cobertas — valores com correção)
-        -- Banco/conta obtidos via Recebidas → RecebePgto (BancoDep/ContaDep)
         SELECT
             CASE v.Empresa
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -151,8 +159,6 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
 
         UNION ALL
 
-        -- Recebidas via tabela Recebidas (empresas não cobertas pela VWBI)
-        -- Banco/conta via RecebePgto (NumeroBanco_rec tem cobertura <2%)
         SELECT
             CASE r.Empresa_rec
                 WHEN 1 THEN 'COMBRASEN' WHEN 3 THEN 'DRESDEN'
@@ -180,48 +186,31 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
     ) t
     ORDER BY Data, Empresa, Obra
     """
-    with _conn() as conn:
+    with get_db() as conn:
         cur = conn.cursor(as_dict=True)
         cur.execute(sql, (de, ate, de, ate, de, ate))
         rows = cur.fetchall()
     return [
         {
-            'empresa':   r['Empresa'] or '',
-            'obra':      r['Obra'] or '',
-            'cliente':   (r['Cliente'] or '').strip(),
-            'tipo':      r['Tipo'] or '',
-            'data':      r['Data'] or '',
-            'data_venc': r['DataVenc'] or '',
-            'valor':     float(r['Valor'] or 0),
-            'status':    r['Status'] or '',
-            'banco':     str(r['Banco'] or '').strip(),
-            'conta':     str(r['Conta'] or '').strip(),
+            "empresa": r["Empresa"] or "",
+            "obra": r["Obra"] or "",
+            "cliente": (r["Cliente"] or "").strip(),
+            "tipo": r["Tipo"] or "",
+            "data": r["Data"] or "",
+            "data_venc": r["DataVenc"] or "",
+            "valor": float(r["Valor"] or 0),
+            "status": r["Status"] or "",
+            "banco": str(r["Banco"] or "").strip(),
+            "conta": str(r["Conta"] or "").strip(),
         }
         for r in rows
     ]
 
 
-def _get_saldo_conta_col():
-    """Descobre o nome da coluna de conta corrente na SaldoConta."""
-    with _conn() as conn:
-        cur = conn.cursor(as_dict=True)
-        cur.execute("""
-            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = 'SaldoConta' AND COLUMN_NAME LIKE %s
-        """, ('%onta%',))
-        cols = [r['COLUMN_NAME'] for r in cur.fetchall()]
-    # Excluir colunas que são de banco (ContaBanco) ou empresa
-    for c in cols:
-        if c.lower().startswith('conta') and 'banco' not in c.lower():
-            return c
-    return None
-
-_SALDO_CONTA_COL = None
-
-def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
+def get_saldo_banco(de: str = "2020-01-01", ate: str = "2030-12-31") -> list[dict]:
     global _SALDO_CONTA_COL
     if _SALDO_CONTA_COL is None:
-        _SALDO_CONTA_COL = _get_saldo_conta_col() or ''
+        _SALDO_CONTA_COL = _get_saldo_conta_col() or ""
 
     conta_select = f"ISNULL({_SALDO_CONTA_COL}, '')" if _SALDO_CONTA_COL else "''"
     sql = f"""
@@ -240,17 +229,17 @@ def get_saldo_banco(de='2020-01-01', ate='2030-12-31'):
       AND Empresa_sdcc IN (1, 3, 4, 5, 6)
     ORDER BY Data_sdcc, Empresa_sdcc, Banco_sdcc
     """
-    with _conn() as conn:
+    with get_db() as conn:
         cur = conn.cursor(as_dict=True)
         cur.execute(sql, (de, ate))
         rows = cur.fetchall()
     return [
         {
-            'empresa': r['Empresa'] or '',
-            'banco':   str(r['Banco'] or '').strip(),
-            'conta':   str(r['Conta'] or '').strip(),
-            'data':    r['Data'] or '',
-            'saldo':   float(r['Saldo'] or 0),
+            "empresa": r["Empresa"] or "",
+            "banco": str(r["Banco"] or "").strip(),
+            "conta": str(r["Conta"] or "").strip(),
+            "data": r["Data"] or "",
+            "saldo": float(r["Saldo"] or 0),
         }
         for r in rows
     ]
