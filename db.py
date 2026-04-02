@@ -140,7 +140,7 @@ def get_receitas(de='2026-01-01', ate='2026-06-30'):
             AND rec.NumVend_Rec  = v.[Numero Venda]
             AND rec.Obra_Rec     = v.Obra
             AND rec.NumParc_Rec  = v.[Numero parcela]
-            AND rec.Data_Rec     = v.Data
+            AND CAST(rec.Data_Rec AS DATE) = CAST(v.Data AS DATE)
             AND rec.Status_Rec   = 1
         LEFT JOIN RecebePgto rp
             ON  rp.Empresa_rpg  = rec.Empresa_rec
