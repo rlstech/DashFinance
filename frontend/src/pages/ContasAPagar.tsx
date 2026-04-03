@@ -114,17 +114,38 @@ export default function ContasAPagar() {
       })
   }, [filteredData])
 
-  const donutData = useMemo(() => {
-    const map = new Map<string, number>()
+  const { categoriasData, fornecedoresData, totalValor } = useMemo(() => {
+    if (!filteredData) return { categoriasData: [], fornecedoresData: [], totalValor: 0 }
+    const byCat: Record<string, number> = {}
+    const byFornecedor: Record<string, number> = {}
+    let total = 0
+
+    const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
+    
+    const formatTopN = (arr: [string, number][], n = 6) => {
+      let result = arr.slice(0, n)
+      const others = arr.slice(n).reduce((acc, curr) => acc + curr[1], 0)
+      if (others > 0) result.push(['Outros', others])
+      return result.map(([name, value], i) => ({
+        name: name || 'N/A',
+        value,
+        color: CHART_COLORS[i % CHART_COLORS.length]
+      }))
+    }
+
     filteredData.forEach((r) => {
-      map.set(r.empresa, (map.get(r.empresa) ?? 0) + r.valor)
+      byCat[r.categoria || 'N/A'] = (byCat[r.categoria || 'N/A'] || 0) + r.valor
+      byFornecedor[r.fornecedor || 'N/A'] = (byFornecedor[r.fornecedor || 'N/A'] || 0) + r.valor
+      total += r.valor
     })
-    return Array.from(map.entries()).map(([name, value]) => ({
-      name,
-      value,
-      color: EMPRESA_COLORS[name] ?? '#6b7280',
-    }))
+
+    return {
+      categoriasData: formatTopN(Object.entries(byCat).sort((a,b) => b[1] - a[1]), 5),
+      fornecedoresData: formatTopN(Object.entries(byFornecedor).sort((a,b) => b[1] - a[1]), 6),
+      totalValor: total
+    }
   }, [filteredData])
+
 
   function handleExport() {
     const headers = ['Empresa', 'Obra', 'Data', 'Fornecedor', 'Banco', 'Conta', 'Categoria', 'Origem', 'Valor']
@@ -250,19 +271,35 @@ export default function ContasAPagar() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Por Empresa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DonutChart
-                data={donutData}
-                centerLabel="Total"
-                centerValue={formatCompact(kpis.total)}
-                height={250}
-              />
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Por Categoria</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DonutChart
+                  data={categoriasData}
+                  centerLabel="Total"
+                  centerValue={formatCompact(totalValor)}
+                  height={160}
+                />
+              </CardContent>
+            </Card>
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Por Fornecedor (Top 6)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DonutChart
+                  data={fornecedoresData}
+                  centerLabel="Total"
+                  centerValue={formatCompact(totalValor)}
+                  height={160}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
         </div>
 
         {/* Table */}

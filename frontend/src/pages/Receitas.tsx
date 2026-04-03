@@ -104,11 +104,38 @@ export default function Receitas() {
       })
   }, [filtered])
 
-  const donutData = useMemo(() => {
-    const byEmp: Record<string, number> = {}
-    filtered.forEach((r) => { byEmp[r.empresa] = (byEmp[r.empresa] || 0) + r.valor })
-    return Object.entries(byEmp).map(([name, value]) => ({ name, value, color: EMPRESA_COLORS[name] || '#607D8B' }))
+  const { obrasData, clientesData, totalRecebido } = useMemo(() => {
+    if (!filtered) return { obrasData: [], clientesData: [], totalRecebido: 0 }
+    const byObra: Record<string, number> = {}
+    const byCliente: Record<string, number> = {}
+    let total = 0
+
+    const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
+    
+    const formatTopN = (arr: [string, number][], n = 5) => {
+      let result = arr.slice(0, n)
+      const others = arr.slice(n).reduce((acc, curr) => acc + curr[1], 0)
+      if (others > 0) result.push(['Outros', others])
+      return result.map(([name, value], i) => ({
+        name: name || 'N/A',
+        value,
+        color: CHART_COLORS[i % CHART_COLORS.length]
+      }))
+    }
+
+    filtered.forEach((r) => {
+      byObra[r.obra || 'N/A'] = (byObra[r.obra || 'N/A'] || 0) + r.valor
+      byCliente[r.cliente || 'N/A'] = (byCliente[r.cliente || 'N/A'] || 0) + r.valor
+      total += r.valor
+    })
+
+    return {
+      obrasData: formatTopN(Object.entries(byObra).sort((a,b) => b[1] - a[1]), 5),
+      clientesData: formatTopN(Object.entries(byCliente).sort((a,b) => b[1] - a[1]), 6),
+      totalRecebido: total
+    }
   }, [filtered])
+
 
   const handleExport = () => {
     exportCSV('receitas.csv',
@@ -179,12 +206,21 @@ export default function Receitas() {
               ]} height={320} />
             </CardContent>
           </Card>
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader><CardTitle className="text-sm font-medium">Por Empresa</CardTitle></CardHeader>
-            <CardContent>
-              <DonutChart data={donutData} centerLabel="Total" centerValue={formatCompact(kpis.total)} height={250} />
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-sm font-medium">Por Obra</CardTitle></CardHeader>
+              <CardContent>
+                <DonutChart data={obrasData} centerLabel="Total" centerValue={formatCompact(totalRecebido)} height={160} />
+              </CardContent>
+            </Card>
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-sm font-medium">Por Cliente (Top 6)</CardTitle></CardHeader>
+              <CardContent>
+                <DonutChart data={clientesData} centerLabel="Total" centerValue={formatCompact(totalRecebido)} height={160} />
+              </CardContent>
+            </Card>
+          </div>
+
         </div>
 
         {/* Table */}
