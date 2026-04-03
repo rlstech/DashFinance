@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
-import { FilterBar } from '@/components/filters/FilterBar'
+import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { TimelineChart } from '@/components/charts/TimelineChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { DataTable } from '@/components/tables/DataTable'
@@ -56,7 +55,7 @@ const columns = [
 
 export default function ContasAPagar() {
   const { data: ALL_DATA, isLoading } = useAP()
-  const { empresa, obra, dtInicio, dtFim, origem, bancos, contas } = useFilterStore()
+  const { empresas, obras, dtInicio, dtFim, origens, bancos, contas } = useFilterStore()
 
   const filteredData = useMemo(() => {
     if (!ALL_DATA) return []
@@ -65,9 +64,9 @@ export default function ContasAPagar() {
     const fim = dtFim ? new Date(dtFim + 'T23:59:59') : null
 
     return ALL_DATA.filter((r) => {
-      if (empresa && r.empresa !== empresa) return false
-      if (obra && r.obra !== obra) return false
-      if (origem && r.origem !== origem) return false
+      if (empresas.length > 0 && !empresas.includes(r.empresa)) return false
+      if (obras.length > 0 && !obras.includes(r.obra)) return false
+      if (origens.length > 0 && !origens.includes(r.origem)) return false
       if (bancos.length > 0 && !bancos.includes(r.banco)) return false
       if (contas.length > 0 && !contas.includes(r.conta)) return false
 
@@ -80,7 +79,7 @@ export default function ContasAPagar() {
 
       return true
     })
-  }, [ALL_DATA, empresa, obra, dtInicio, dtFim, origem, bancos, contas])
+  }, [ALL_DATA, empresas, obras, dtInicio, dtFim, origens, bancos, contas])
 
   const kpis = useMemo(() => {
     const total = filteredData.reduce((s, r) => s + r.valor, 0)
@@ -145,38 +144,35 @@ export default function ContasAPagar() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full">
-        <Header title="Contas a Pagar" />
-        <div className="p-6 space-y-6">
+      <div className="flex h-full">
+        <FilterSidebar showOrigem />
+        <div className="p-6 space-y-6 flex-1 overflow-auto">
           <Skeleton className="h-14 w-full rounded-lg" />
           <div className="grid grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-lg" />
+              <Skeleton key={i} className="h-28 rounded-xl" />
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-6">
-            <Skeleton className="col-span-2 h-80 rounded-lg" />
-            <Skeleton className="h-80 rounded-lg" />
-          </div>
-          <Skeleton className="h-96 rounded-lg" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Header title="Contas a Pagar" />
+    <div className="flex h-full">
+      <FilterSidebar showOrigem />
 
       <div className="p-6 space-y-6 overflow-auto flex-1">
-        <FilterBar showOrigem />
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Contas a Pagar</h1>
+        </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Total do Periodo
+                Total do Período
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -187,10 +183,10 @@ export default function ContasAPagar() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Emissao
+                Emissão
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -203,7 +199,7 @@ export default function ContasAPagar() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 A Confirmar
@@ -219,7 +215,7 @@ export default function ContasAPagar() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Pago
@@ -238,15 +234,15 @@ export default function ContasAPagar() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 rounded-xl shadow-sm">
             <CardHeader>
-              <CardTitle className="text-sm font-medium">Evolucao Mensal</CardTitle>
+              <CardTitle className="text-sm font-medium">Evolução Mensal</CardTitle>
             </CardHeader>
             <CardContent>
               <TimelineChart
                 data={timelineData}
                 bars={[
-                  { key: 'emissao', color: '#2d6a4f', name: 'Emissao' },
+                  { key: 'emissao', color: '#2d6a4f', name: 'Emissão' },
                   { key: 'a_confirmar', color: '#52b788', name: 'A Confirmar' },
                 ]}
                 height={320}
@@ -254,7 +250,7 @@ export default function ContasAPagar() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-xl shadow-sm">
             <CardHeader>
               <CardTitle className="text-sm font-medium">Por Empresa</CardTitle>
             </CardHeader>
@@ -270,10 +266,10 @@ export default function ContasAPagar() {
         </div>
 
         {/* Table */}
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">Detalhamento</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <Button variant="outline" size="sm" onClick={handleExport} className="rounded-lg">
               <Download className="h-4 w-4 mr-2" />
               Exportar CSV
             </Button>

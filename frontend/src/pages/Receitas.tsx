@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
-import { FilterBar } from '@/components/filters/FilterBar'
+import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { TimelineChart } from '@/components/charts/TimelineChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { DataTable } from '@/components/tables/DataTable'
@@ -54,7 +53,8 @@ export default function Receitas() {
   const filtered = useMemo(() => {
     if (!allData) return []
     const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
-    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T00:00:00') : null
+    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
+    
     return allData.filter((r) => {
       if (d1 || d2) {
         const rd = parseDate(r.data)
@@ -62,9 +62,11 @@ export default function Receitas() {
         if (d1 && rd < d1) return false
         if (d2 && rd > d2) return false
       }
-      if (filters.empresa && r.empresa !== filters.empresa) return false
-      if (filters.obra && r.obra !== filters.obra) return false
-      if (filters.status && r.status !== filters.status) return false
+      
+      if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
+      if (filters.obras.length > 0 && !filters.obras.includes(r.obra)) return false
+      if (filters.status_list.length > 0 && !filters.status_list.includes(r.status)) return false
+      
       if (filters.bancos.length > 0) {
         if (r.banco && !filters.bancos.includes(r.banco)) return false
       }
@@ -117,37 +119,41 @@ export default function Receitas() {
 
   if (isLoading) {
     return (
-      <div><Header title="Receitas" />
-        <div className="p-6 space-y-6">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-lg" />)}</div>
-          <Skeleton className="h-80 rounded-lg" />
+      <div className="flex h-full">
+        <FilterSidebar showStatus />
+        <div className="p-6 space-y-6 flex-1 overflow-auto">
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
+          <Skeleton className="h-80 rounded-xl" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Header title="Receitas" />
+    <div className="flex h-full">
+      <FilterSidebar showStatus />
+      
       <div className="p-6 space-y-6 overflow-auto flex-1">
-        <FilterBar showStatus />
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Receitas</h1>
+        </div>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card><CardHeader className="pb-2"><CardTitle>Total do Periodo</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total do Período</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold">{formatCompact(kpis.total)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle>Total Recebido</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Recebido</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold text-emerald-400">{formatCompact(kpis.recebido)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle>A Receber</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">A Receber</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold text-amber-400">{formatCompact(kpis.aReceber)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle>Clientes Ativos</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Clientes Ativos</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold">{kpis.clientes}</div></CardContent></Card>
         </div>
 
         {/* Taxa de Recebimento */}
-        <Card>
-          <CardHeader className="pb-2"><CardTitle>Taxa de Recebimento</CardTitle></CardHeader>
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Taxa de Recebimento</CardTitle></CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
               <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
@@ -164,8 +170,8 @@ export default function Receitas() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader><CardTitle>Timeline de Recebimentos</CardTitle></CardHeader>
+          <Card className="lg:col-span-2 rounded-xl shadow-sm">
+            <CardHeader><CardTitle className="text-sm font-medium">Timeline de Recebimentos</CardTitle></CardHeader>
             <CardContent>
               <TimelineChart data={chartData} bars={[
                 { key: 'recebida', color: '#065f46', name: 'Recebida' },
@@ -173,19 +179,19 @@ export default function Receitas() {
               ]} height={320} />
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader><CardTitle>Por Empresa</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm">
+            <CardHeader><CardTitle className="text-sm font-medium">Por Empresa</CardTitle></CardHeader>
             <CardContent>
-              <DonutChart data={donutData} centerLabel="Total" centerValue={formatCompact(kpis.total)} />
+              <DonutChart data={donutData} centerLabel="Total" centerValue={formatCompact(kpis.total)} height={250} />
             </CardContent>
           </Card>
         </div>
 
         {/* Table */}
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Detalhamento</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Exportar</Button>
+            <CardTitle className="text-sm font-medium">Detalhamento</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleExport} className="rounded-lg"><Download className="h-4 w-4 mr-2" />Exportar</Button>
           </CardHeader>
           <CardContent>
             <DataTable data={filtered} columns={columns as ColumnDef<ReceitaRecord, unknown>[]} searchPlaceholder="Buscar cliente, obra..." />

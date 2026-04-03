@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
-import { Header } from '@/components/layout/Header'
-import { FilterBar } from '@/components/filters/FilterBar'
+import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { CashFlowChart } from '@/components/charts/CashFlowChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { DataTable } from '@/components/tables/DataTable'
@@ -37,10 +36,10 @@ const columns = [
   col.accessor('data', { header: 'Data' }),
   col.accessor('saldo_anterior', { header: 'Saldo Anterior', cell: (info) => valCell(info.getValue as () => number | null) }),
   col.accessor('entradas', { header: 'Entradas', cell: (info) => <span className="font-medium tabular-nums block text-right text-emerald-400">{formatCurrency(info.getValue())}</span> }),
-  col.accessor('saidas', { header: 'Saidas', cell: (info) => <span className="font-medium tabular-nums block text-right text-red-400">{formatCurrency(info.getValue())}</span> }),
+  col.accessor('saidas', { header: 'Saídas', cell: (info) => <span className="font-medium tabular-nums block text-right text-red-400">{formatCurrency(info.getValue())}</span> }),
   col.accessor('saldo_dia', { header: 'Saldo do Dia', cell: (info) => valCell(info.getValue as () => number | null) }),
   col.accessor('acumulado', { header: 'Saldo Acumulado', cell: (info) => valCell(info.getValue as () => number | null) }),
-  col.accessor('saldo_banco', { header: 'Saldo Bancario', cell: (info) => valCell(info.getValue as () => number | null) }),
+  col.accessor('saldo_banco', { header: 'Saldo Bancário', cell: (info) => valCell(info.getValue as () => number | null) }),
 ]
 
 export default function FluxoCaixa() {
@@ -53,10 +52,16 @@ export default function FluxoCaixa() {
   const diasData = useMemo(() => {
     if (!apData || !recData || !saldoData) return []
     const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
-    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T00:00:00') : null
-    const emp = filters.empresa
-    const obra = filters.obra
-    const vis = filters.vis
+    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
+    
+    // Convert old single selections to handles on the arrays
+    // FluxoCaixa supports filtering but note that `saidas` / `entradas` might have specific visibility rules
+    const emps = filters.empresas
+    const obs = filters.obras
+    const visList = filters.vis
+
+    const hasRealizado = visList.includes('realizado') || visList.includes('todos') || visList.length === 0
+    const hasProjetado = visList.includes('projetado') || visList.includes('todos') || visList.length === 0
 
     // Filter saidas (AP)
     const saidas = apData.filter((r) => {
@@ -66,16 +71,18 @@ export default function FluxoCaixa() {
         if (d1 && rd < d1) return false
         if (d2 && rd > d2) return false
       }
-      if (emp && r.empresa !== emp) return false
-      if (obra && r.obra !== obra) return false
+      if (emps.length > 0 && !emps.includes(r.empresa)) return false
+      if (obs.length > 0 && !obs.includes(r.obra)) return false
       if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
       if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
-      if (vis === 'realizado' && r.origem !== 'Pago') return false
-      if (vis === 'projetado' && r.origem === 'Pago') return false
+      
+      const isRealizado = r.origem === 'Pago'
+      if (isRealizado && !hasRealizado) return false
+      if (!isRealizado && !hasProjetado) return false
       return true
     })
 
-    // Filter entradas (Receitas) — empty banco passes through
+    // Filter entradas (Receitas)
     const entradas = recData.filter((r) => {
       if (d1 || d2) {
         const rd = parseDate(r.data)
@@ -83,12 +90,14 @@ export default function FluxoCaixa() {
         if (d1 && rd < d1) return false
         if (d2 && rd > d2) return false
       }
-      if (emp && r.empresa !== emp) return false
-      if (obra && r.obra !== obra) return false
+      if (emps.length > 0 && !emps.includes(r.empresa)) return false
+      if (obs.length > 0 && !obs.includes(r.obra)) return false
       if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return false
       if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return false
-      if (vis === 'realizado' && r.status !== 'Recebida') return false
-      if (vis === 'projetado' && r.status !== 'A Receber') return false
+      
+      const isRealizado = r.status === 'Recebida'
+      if (isRealizado && !hasRealizado) return false
+      if (!isRealizado && !hasProjetado) return false
       return true
     })
 
@@ -115,7 +124,7 @@ export default function FluxoCaixa() {
 
     // Forward-fill saldo bancario
     const saldoFiltered = saldoData.filter((r) => {
-      if (emp && r.empresa !== emp) return false
+      if (emps.length > 0 && !emps.includes(r.empresa)) return false
       if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
       if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
       return true
@@ -192,21 +201,20 @@ export default function FluxoCaixa() {
   const donutData = useMemo(() => {
     if (!recData) return []
     const byEmp: Record<string, number> = {}
-    diasData.forEach(() => {}) // unused, use filtered entradas
     recData.filter((r) => {
       const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
-      const d2 = filters.dtFim ? new Date(filters.dtFim + 'T00:00:00') : null
+      const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
       if (d1 || d2) {
         const rd = parseDate(r.data)
         if (!rd) return false
         if (d1 && rd < d1) return false
         if (d2 && rd > d2) return false
       }
-      if (filters.empresa && r.empresa !== filters.empresa) return false
+      if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
       return true
     }).forEach((r) => { byEmp[r.empresa] = (byEmp[r.empresa] || 0) + r.valor })
     return Object.entries(byEmp).map(([name, value]) => ({ name, value, color: EMPRESA_COLORS[name] || '#607D8B' }))
-  }, [recData, filters, diasData])
+  }, [recData, filters])
 
   const handleExport = () => {
     exportCSV('fluxo_caixa.csv',
@@ -217,54 +225,58 @@ export default function FluxoCaixa() {
 
   if (isLoading) {
     return (
-      <div><Header title="Fluxo de Caixa" />
-        <div className="p-6 space-y-6">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-lg" />)}</div>
-          <Skeleton className="h-96 rounded-lg" />
+      <div className="flex h-full">
+        <FilterSidebar showVis />
+        <div className="p-6 space-y-6 flex-1 overflow-auto">
+          <Skeleton className="h-14 w-full rounded-xl" />
+          <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
+          <Skeleton className="h-96 rounded-xl" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <Header title="Fluxo de Caixa" />
+    <div className="flex h-full">
+      <FilterSidebar showVis />
+      
       <div className="p-6 space-y-6 overflow-auto flex-1">
-        <FilterBar showVis />
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Fluxo de Caixa</h1>
+        </div>
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card><CardHeader className="pb-2"><CardTitle>Total Entradas</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Entradas</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold text-emerald-400">{formatCompact(kpis.totalEntradas)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle>Total Saidas</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Saídas</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold text-red-400">{formatCompact(kpis.totalSaidas)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle>Saldo do Periodo</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Saldo do Período</CardTitle></CardHeader>
             <CardContent><div className={`text-2xl font-bold ${kpis.saldo >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCompact(kpis.saldo)}</div></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle>Dias Positivos</CardTitle></CardHeader>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Dias Positivos</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold">{kpis.diasPositivos} <span className="text-sm font-normal text-muted-foreground">/ {kpis.totalDias}</span></div></CardContent></Card>
         </div>
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader><CardTitle>Fluxo de Caixa Diario</CardTitle></CardHeader>
+          <Card className="lg:col-span-2 rounded-xl shadow-sm">
+            <CardHeader><CardTitle className="text-sm font-medium">Fluxo de Caixa Diário</CardTitle></CardHeader>
             <CardContent>
               <CashFlowChart data={chartData} height={350} />
             </CardContent>
           </Card>
           <div className="space-y-6">
-            <Card>
-              <CardHeader><CardTitle>Entradas por Empresa</CardTitle></CardHeader>
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-sm font-medium">Entradas por Empresa</CardTitle></CardHeader>
               <CardContent>
                 <DonutChart data={donutData} centerLabel="Entradas" centerValue={formatCompact(kpis.totalEntradas)} height={200} />
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader><CardTitle>Estatisticas</CardTitle></CardHeader>
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-sm font-medium">Estatísticas</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Maior entrada</span><span className="font-medium text-emerald-400">{formatCompact(Math.max(0, ...diasData.map((d) => d.entradas)))}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Maior saida</span><span className="font-medium text-red-400">{formatCompact(Math.max(0, ...diasData.map((d) => d.saidas)))}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Maior saída</span><span className="font-medium text-red-400">{formatCompact(Math.max(0, ...diasData.map((d) => d.saidas)))}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Dias positivos</span><span className="font-medium">{kpis.diasPositivos}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Dias negativos</span><span className="font-medium">{kpis.totalDias - kpis.diasPositivos}</span></div>
               </CardContent>
@@ -273,10 +285,10 @@ export default function FluxoCaixa() {
         </div>
 
         {/* Table */}
-        <Card>
+        <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Saldo por Dia</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-2" />Exportar</Button>
+            <CardTitle className="text-sm font-medium">Saldo por Dia</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleExport} className="rounded-lg"><Download className="h-4 w-4 mr-2" />Exportar</Button>
           </CardHeader>
           <CardContent>
             <DataTable data={diasData} columns={columns as ColumnDef<DiaData, unknown>[]} searchPlaceholder="Buscar data..." />

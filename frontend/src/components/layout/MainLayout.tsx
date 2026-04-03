@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router-dom'
-import { Sidebar } from './Sidebar'
+import { TopHeader } from './TopHeader'
 
 export function MainLayout() {
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
+    <div className="flex flex-col min-h-screen bg-[#f8fafc] dark:bg-background">
+      <TopHeader />
+      <main className="flex-1 overflow-hidden">
         <Outlet />
       </main>
     </div>
