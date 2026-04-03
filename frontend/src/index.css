@@ -6,36 +6,38 @@
 
 @layer base {
   :root {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 16 78% 50%;
+    /* Combrasen Branding: Dark Blue (#001D24), Orange (#F25B2A), White (#F8F9FA) */
+    --background: 191 100% 5%;
+    --foreground: 210 20% 98%;
+    --card: 191 100% 8%;
+    --card-foreground: 210 20% 98%;
+    --popover: 191 100% 8%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 15 88% 56%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 191 50% 15%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 191 50% 15%;
+    --muted-foreground: 191 20% 65%;
+    --accent: 15 88% 56%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 16 78% 50%;
-    --radius: 0.5rem;
+    --border: 191 50% 15%;
+    --input: 191 50% 15%;
+    --ring: 15 88% 56%;
+    --radius: 0.75rem;
 
-    --chart-receita: #22c55e;
+    /* Chart colors following branding */
+    --chart-receita: #F25B2A;
     --chart-despesa: #ef4444;
-    --chart-saldo: #3b82f6;
-    --chart-previsto: #f59e0b;
+    --chart-saldo: #ffffff;
+    --chart-previsto: #94a3b8;
     --chart-a-confirmar: #52b788;
-    --chart-emissao: #2d6a4f;
-    --chart-pago: #991b1b;
-    --chart-recebida: #065f46;
-    --chart-a-receber: #f59e0b;
+    --chart-emissao: #F25B2A;
+    --chart-pago: #ef4444;
+    --chart-recebida: #F25B2A;
+    --chart-a-receber: #ffffff;
   }
 
   * {

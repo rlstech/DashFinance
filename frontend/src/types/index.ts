@@ -57,11 +57,11 @@ export interface FilterTree {
 }
 
 export const EMPRESA_COLORS: Record<string, string> = {
-  COMBRASEN: '#2D6A4F',
-  DRESDEN: '#1565C0',
-  TRUST: '#E65100',
+  COMBRASEN: '#F25B2A',
+  DRESDEN: '#005662',
+  TRUST: '#00838F',
   'GAMA 01': '#4A148C',
-  'CONSÓRCIO HMSJ': '#00838F',
+  'CONSÓRCIO HMSJ': '#00796B',
 }
 
 export const EMPRESA_ABBR: Record<string, string> = {
