@@ -198,9 +198,24 @@ export default function FluxoCaixa() {
     [diasData]
   )
 
-  const donutData = useMemo(() => {
-    if (!recData) return []
-    const byEmp: Record<string, number> = {}
+  const { obrasData, clientesData, totalRecebimento } = useMemo(() => {
+    if (!recData) return { obrasData: [], clientesData: [], totalRecebimento: 0 }
+    const byObra: Record<string, number> = {}
+    const byCliente: Record<string, number> = {}
+    let totalValue = 0
+
+    const formatTopN = (arr: [string, number][], n = 5) => {
+      const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
+      let result = arr.slice(0, n)
+      const others = arr.slice(n).reduce((acc, curr) => acc + curr[1], 0)
+      if (others > 0) result.push(['Outros', others])
+      return result.map(([name, value], i) => ({
+        name: name || 'N/A',
+        value,
+        color: CHART_COLORS[i % CHART_COLORS.length]
+      }))
+    }
+
     recData.filter((r) => {
       const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
       const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
@@ -211,9 +226,31 @@ export default function FluxoCaixa() {
         if (d2 && rd > d2) return false
       }
       if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
+      if (filters.obras.length > 0 && !filters.obras.includes(r.obra)) return false
+      if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return false
+      if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return false
+      
+      const hasRealizado = filters.vis.includes('realizado') || filters.vis.includes('todos') || filters.vis.length === 0
+      const hasProjetado = filters.vis.includes('projetado') || filters.vis.includes('todos') || filters.vis.length === 0
+      const isRealizado = r.status === 'Recebida'
+      if (isRealizado && !hasRealizado) return false
+      if (!isRealizado && !hasProjetado) return false
+      
       return true
-    }).forEach((r) => { byEmp[r.empresa] = (byEmp[r.empresa] || 0) + r.valor })
-    return Object.entries(byEmp).map(([name, value]) => ({ name, value, color: EMPRESA_COLORS[name] || '#607D8B' }))
+    }).forEach((r) => { 
+      byObra[r.obra || 'N/A'] = (byObra[r.obra || 'N/A'] || 0) + r.valor 
+      byCliente[r.cliente || 'N/A'] = (byCliente[r.cliente || 'N/A'] || 0) + r.valor
+      totalValue += r.valor
+    })
+
+    const obArr = Object.entries(byObra).sort((a,b) => b[1] - a[1])
+    const clArr = Object.entries(byCliente).sort((a,b) => b[1] - a[1])
+
+    return {
+      obrasData: formatTopN(obArr, 5),
+      clientesData: formatTopN(clArr, 6),
+      totalRecebimento: totalValue
+    }
   }, [recData, filters])
 
   const handleExport = () => {
@@ -267,11 +304,18 @@ export default function FluxoCaixa() {
           </Card>
           <div className="space-y-6">
             <Card className="rounded-xl shadow-sm">
-              <CardHeader><CardTitle className="text-sm font-medium">Entradas por Empresa</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm font-medium">Entradas por Obra</CardTitle></CardHeader>
               <CardContent>
-                <DonutChart data={donutData} centerLabel="Entradas" centerValue={formatCompact(kpis.totalEntradas)} height={200} />
+                <DonutChart data={obrasData} centerLabel="Entradas" centerValue={formatCompact(totalRecebimento)} height={160} />
               </CardContent>
             </Card>
+            <Card className="rounded-xl shadow-sm">
+              <CardHeader><CardTitle className="text-sm font-medium">Entradas por Cliente (Top 6)</CardTitle></CardHeader>
+              <CardContent>
+                <DonutChart data={clientesData} centerLabel="Entradas" centerValue={formatCompact(totalRecebimento)} height={160} />
+              </CardContent>
+            </Card>
+
             <Card className="rounded-xl shadow-sm">
               <CardHeader><CardTitle className="text-sm font-medium">Estatísticas</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
