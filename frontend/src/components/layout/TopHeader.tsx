@@ -16,23 +16,25 @@ export function TopHeader() {
   const sync = useSync()
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b bg-card">
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2">
-          <LayoutDashboard className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg hidden sm:inline-block">DashFinance</span>
-        </div>
-        
-        <nav className="flex items-center gap-1">
+    <header className="flex items-center border-b bg-card h-14 w-full">
+      {/* Logo Area - Fixed width to match FilterSidebar */}
+      <div className="flex items-center w-[280px] min-w-[280px] pl-6 pr-4 border-r h-full">
+        <LayoutDashboard className="h-5 w-5 text-primary mr-2" />
+        <span className="font-bold text-lg hidden sm:inline-block">DashFinance</span>
+      </div>
+
+      {/* Main Header Area */}
+      <div className="flex-1 flex items-center justify-between px-6 h-full">
+        <nav className="flex items-center gap-1.5 h-full">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors',
+                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                 )
               }
@@ -42,24 +44,24 @@ export function TopHeader() {
             </NavLink>
           ))}
         </nav>
-      </div>
 
-      <div className="flex items-center gap-4">
-        {status?.last_sync && (
-          <span className="text-xs text-muted-foreground hidden lg:inline-block">
-            Atualizado {status.last_sync}
-          </span>
-        )}
-        <Button
-          size="sm"
-          variant="outline"
-          className="rounded-full"
-          onClick={() => sync.mutate()}
-          disabled={sync.isPending}
-        >
-          <RefreshCw className={cn('h-4 w-4 mr-2', sync.isPending && 'animate-spin')} />
-          Sincronizar
-        </Button>
+        <div className="flex items-center gap-4">
+          {status?.last_sync && (
+            <span className="text-xs text-muted-foreground hidden lg:inline-block">
+              Atualizado {status.last_sync}
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-lg shadow-sm"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            <RefreshCw className={cn('h-4 w-4 mr-2', sync.isPending && 'animate-spin')} />
+            Sincronizar
+          </Button>
+        </div>
       </div>
     </header>
   )

@@ -1,6 +1,7 @@
 import { useFilterStore } from '@/hooks/useFilters'
 import { useFilterTree } from '@/hooks/useFinanceiro'
 import { MultiSelect } from './MultiSelect'
+import { DateRangeSelector } from './DateRangeSelector'
 import { Button } from '@/components/ui/button'
 import { RotateCcw } from 'lucide-react'
 
@@ -47,26 +48,15 @@ export function FilterSidebar({ showOrigem, showStatus, showVis }: FilterSidebar
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 flex flex-col">
         
-        {/* Periodo */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Período</span>
-          <div className="flex flex-col gap-2">
-            <input
-              type="date"
-              className="w-full h-10 px-3 rounded-lg border bg-background text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
-              value={filters.dtInicio}
-              onChange={(e) => filters.setFilter('dtInicio', e.target.value)}
-            />
-            <input
-              type="date"
-              className="w-full h-10 px-3 rounded-lg border bg-background text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
-              value={filters.dtFim}
-              onChange={(e) => filters.setFilter('dtFim', e.target.value)}
-            />
-          </div>
-        </div>
+        {/* Periodo Moderno */}
+        <DateRangeSelector 
+          startDate={filters.dtInicio}
+          endDate={filters.dtFim}
+          onStartDateChange={(val) => filters.setFilter('dtInicio', val)}
+          onEndDateChange={(val) => filters.setFilter('dtFim', val)}
+        />
 
         {/* Empresa multi-select */}
         <MultiSelect
