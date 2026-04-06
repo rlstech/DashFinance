@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
@@ -194,10 +194,29 @@ export default function FluxoCaixa() {
     return { totalEntradas, totalSaidas, saldo, diasPositivos, totalDias: diasData.length }
   }, [diasData])
 
+  const [chartMode, setChartMode] = useState<'diario' | 'mensal'>('diario')
+
   const chartData = useMemo(() =>
     diasData.map((d) => ({ label: d.data, entradas: d.entradas, saidas: d.saidas, acumulado: d.acumulado })),
     [diasData]
   )
+
+  const chartDataMensal = useMemo(() => {
+    const byMonth: Record<string, { entradas: number; saidas: number }> = {}
+    const order: string[] = []
+    diasData.forEach((d) => {
+      const parts = d.data.split('/')
+      const key = `${parts[1]}/${parts[2]}`
+      if (!byMonth[key]) { byMonth[key] = { entradas: 0, saidas: 0 }; order.push(key) }
+      byMonth[key].entradas += d.entradas
+      byMonth[key].saidas += d.saidas
+    })
+    let acumulado = 0
+    return order.map((key) => {
+      acumulado += byMonth[key].entradas - byMonth[key].saidas
+      return { label: key, ...byMonth[key], acumulado }
+    })
+  }, [diasData])
 
   const necessidadeAporte = useMemo(() => {
     let acumAnterior = 0
@@ -349,9 +368,15 @@ export default function FluxoCaixa() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 rounded-xl shadow-sm">
-            <CardHeader><CardTitle className="text-sm font-medium">Fluxo de Caixa Diário</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium">Fluxo de Caixa {chartMode === 'diario' ? 'Diário' : 'Mensal'}</CardTitle>
+              <div className="flex gap-1">
+                <Button variant={chartMode === 'diario' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setChartMode('diario')}>Diário</Button>
+                <Button variant={chartMode === 'mensal' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setChartMode('mensal')}>Mensal</Button>
+              </div>
+            </CardHeader>
             <CardContent>
-              <CashFlowChart data={chartData} height={350} />
+              <CashFlowChart data={chartMode === 'diario' ? chartData : chartDataMensal} height={350} />
             </CardContent>
           </Card>
           <div className="space-y-6">
