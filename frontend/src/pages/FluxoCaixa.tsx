@@ -208,6 +208,52 @@ export default function FluxoCaixa() {
     })
   }, [diasData])
 
+  const obrasBreakdown = useMemo(() => {
+    if (!apData || !recData) return { entradasByObra: {}, saidasByObra: {}, obrasEntrada: [], obrasSaida: [] }
+    const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
+    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
+    const emps = filters.empresas
+    const obs = filters.obras
+    const hasRealizado = filters.vis.includes('realizado') || filters.vis.includes('todos') || filters.vis.length === 0
+    const hasProjetado = filters.vis.includes('projetado') || filters.vis.includes('todos') || filters.vis.length === 0
+
+    // obra -> date -> value
+    const entradasByObra: Record<string, Record<string, number>> = {}
+    const saidasByObra: Record<string, Record<string, number>> = {}
+
+    recData.forEach((r) => {
+      if (d1 || d2) { const rd = parseDate(r.data); if (!rd || (d1 && rd < d1) || (d2 && rd > d2)) return }
+      if (emps.length > 0 && !emps.includes(r.empresa)) return
+      if (obs.length > 0 && !obs.includes(r.obra)) return
+      if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return
+      if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return
+      const isRealizado = r.status === 'Recebida'
+      if (isRealizado && !hasRealizado) return
+      if (!isRealizado && !hasProjetado) return
+      const obra = r.obra || 'N/A'
+      if (!entradasByObra[obra]) entradasByObra[obra] = {}
+      entradasByObra[obra][r.data] = (entradasByObra[obra][r.data] || 0) + r.valor
+    })
+
+    apData.forEach((r) => {
+      if (d1 || d2) { const rd = parseDate(r.data); if (!rd || (d1 && rd < d1) || (d2 && rd > d2)) return }
+      if (emps.length > 0 && !emps.includes(r.empresa)) return
+      if (obs.length > 0 && !obs.includes(r.obra)) return
+      if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return
+      if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return
+      const isRealizado = r.origem === 'Pago'
+      if (isRealizado && !hasRealizado) return
+      if (!isRealizado && !hasProjetado) return
+      const obra = r.obra || 'N/A'
+      if (!saidasByObra[obra]) saidasByObra[obra] = {}
+      saidasByObra[obra][r.data] = (saidasByObra[obra][r.data] || 0) + r.valor
+    })
+
+    const obrasEntrada = Object.keys(entradasByObra).sort()
+    const obrasSaida = Object.keys(saidasByObra).sort()
+    return { entradasByObra, saidasByObra, obrasEntrada, obrasSaida }
+  }, [apData, recData, filters])
+
   const { obrasData, clientesData, totalRecebimento } = useMemo(() => {
     if (!recData) return { obrasData: [], clientesData: [], totalRecebimento: 0 }
     const byObra: Record<string, number> = {}
@@ -341,10 +387,11 @@ export default function FluxoCaixa() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Entrada — total */}
                   <tr className="border-b border-border/50 bg-emerald-950/20">
-                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Entrada</td>
+                    <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{background: 'color-mix(in srgb, hsl(var(--card)) 85%, #065f46 15%)'}}>— Entrada</td>
                     {diasData.map((d) => (
-                      <td key={d.data} className="text-right px-3 py-2 tabular-nums text-emerald-400">
+                      <td key={d.data} className="text-right px-3 py-2 tabular-nums font-semibold text-emerald-400">
                         {d.entradas > 0 ? formatCurrency(d.entradas) : <span className="text-muted-foreground/40">-</span>}
                       </td>
                     ))}
@@ -352,10 +399,31 @@ export default function FluxoCaixa() {
                       {formatCurrency(diasData.reduce((s, d) => s + d.entradas, 0))}
                     </td>
                   </tr>
+                  {/* Entrada — por obra */}
+                  {obrasBreakdown.obrasEntrada.map((obra) => {
+                    const byDate = obrasBreakdown.entradasByObra[obra]
+                    const total = Object.values(byDate).reduce((s: number, v) => s + v, 0)
+                    return (
+                      <tr key={`e-${obra}`} className="border-b border-border/30">
+                        <td className="sticky left-0 z-10 px-4 py-1.5 pl-8 text-muted-foreground" style={{background: 'hsl(var(--card))'}}>
+                          {obra}
+                        </td>
+                        {diasData.map((d) => (
+                          <td key={d.data} className="text-right px-3 py-1.5 tabular-nums text-emerald-400/80">
+                            {byDate[d.data] ? formatCurrency(byDate[d.data]) : <span className="text-muted-foreground/30">-</span>}
+                          </td>
+                        ))}
+                        <td className="text-right px-3 py-1.5 tabular-nums text-emerald-400/80 font-medium">
+                          {formatCurrency(total)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {/* Saída — total */}
                   <tr className="border-b border-border/50 bg-red-950/20">
-                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Saída</td>
+                    <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{background: 'color-mix(in srgb, hsl(var(--card)) 85%, #7f1d1d 15%)'}}>— Saída</td>
                     {diasData.map((d) => (
-                      <td key={d.data} className="text-right px-3 py-2 tabular-nums text-red-400">
+                      <td key={d.data} className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
                         {d.saidas > 0 ? formatCurrency(d.saidas) : <span className="text-muted-foreground/40">-</span>}
                       </td>
                     ))}
@@ -363,19 +431,41 @@ export default function FluxoCaixa() {
                       {formatCurrency(diasData.reduce((s, d) => s + d.saidas, 0))}
                     </td>
                   </tr>
+                  {/* Saída — por obra */}
+                  {obrasBreakdown.obrasSaida.map((obra) => {
+                    const byDate = obrasBreakdown.saidasByObra[obra]
+                    const total = Object.values(byDate).reduce((s: number, v) => s + v, 0)
+                    return (
+                      <tr key={`s-${obra}`} className="border-b border-border/30">
+                        <td className="sticky left-0 z-10 px-4 py-1.5 pl-8 text-muted-foreground" style={{background: 'hsl(var(--card))'}}>
+                          {obra}
+                        </td>
+                        {diasData.map((d) => (
+                          <td key={d.data} className="text-right px-3 py-1.5 tabular-nums text-red-400/80">
+                            {byDate[d.data] ? formatCurrency(byDate[d.data]) : <span className="text-muted-foreground/30">-</span>}
+                          </td>
+                        ))}
+                        <td className="text-right px-3 py-1.5 tabular-nums text-red-400/80 font-medium">
+                          {formatCurrency(total)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {/* Saldo Acumulado */}
                   <tr className="border-b border-border/50">
-                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Saldo Acumulado</td>
+                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-semibold" style={{background: 'hsl(var(--card))'}}>Saldo Acumulado</td>
                     {diasData.map((d) => (
-                      <td key={d.data} className={`text-right px-3 py-2 tabular-nums font-medium ${d.acumulado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <td key={d.data} className={`text-right px-3 py-2 tabular-nums font-semibold ${d.acumulado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {formatCurrency(d.acumulado)}
                       </td>
                     ))}
                     <td className="text-right px-3 py-2 tabular-nums font-semibold text-muted-foreground">-</td>
                   </tr>
+                  {/* Necessidade de Aporte */}
                   <tr className="bg-orange-950/20">
-                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Necessidade de Aporte</td>
+                    <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{background: 'color-mix(in srgb, hsl(var(--card)) 85%, #431407 15%)'}}>Necessidade de Aporte</td>
                     {necessidadeAporte.map((v, i) => (
-                      <td key={diasData[i].data} className="text-right px-3 py-2 tabular-nums text-red-400">
+                      <td key={diasData[i].data} className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
                         {v !== null ? formatCurrency(v) : <span className="text-muted-foreground/40">-</span>}
                       </td>
                     ))}
