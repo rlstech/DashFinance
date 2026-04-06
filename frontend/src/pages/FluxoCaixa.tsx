@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useState } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import { Download } from 'lucide-react'
+import { Download, FileText, Sheet } from 'lucide-react'
+import { exportPivotPDF, exportPivotXLSX } from '@/lib/exportPivot'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { CashFlowChart } from '@/components/charts/CashFlowChart'
 import { DonutChart } from '@/components/charts/DonutChart'
@@ -336,6 +337,28 @@ export default function FluxoCaixa() {
     )
   }
 
+  const buildPivotExportData = () => {
+    const empresaLabel = filters.empresas.length > 0 ? filters.empresas.join(', ') : 'Todas as Empresas'
+    const fmtIso = (iso: string) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}` }
+    const periodoLabel = filters.dtInicio && filters.dtFim
+      ? `${fmtIso(filters.dtInicio)} a ${fmtIso(filters.dtFim)}`
+      : diasData.length > 0 ? `${diasData[0].data} a ${diasData[diasData.length - 1].data}` : ''
+    return {
+      diasData,
+      entradasByObra: obrasBreakdown.entradasByObra,
+      saidasByObra: obrasBreakdown.saidasByObra,
+      obrasEntrada: obrasBreakdown.obrasEntrada,
+      obrasSaida: obrasBreakdown.obrasSaida,
+      necessidadeAporte,
+      empresaLabel,
+      periodoLabel,
+      saldoBancario: diasData[0]?.saldo_anterior ?? null,
+    }
+  }
+
+  const handleExportPDF = () => exportPivotPDF(buildPivotExportData())
+  const handleExportXLSX = () => exportPivotXLSX(buildPivotExportData())
+
   if (isLoading) {
     return (
       <div className="flex h-full">
@@ -401,7 +424,13 @@ export default function FluxoCaixa() {
 
         {/* Pivot table */}
         <Card className="rounded-xl shadow-sm">
-          <CardHeader><CardTitle className="text-sm font-medium">Fluxo de Caixa por Dia</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">Fluxo de Caixa por Dia</CardTitle>
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={handleExportXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
+              <Button variant="outline" size="sm" onClick={handleExportPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>
+            </div>
+          </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
