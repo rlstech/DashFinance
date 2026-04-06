@@ -114,17 +114,9 @@ export default function FluxoCaixa() {
       byDate[r.data].s += r.valor
     })
 
-    // Sort and compute acumulado
-    let acumulado = 0
-    let dias = Object.keys(byDate)
-      .sort(compareDates)
-      .map((data) => {
-        const saldo_dia = byDate[data].e - byDate[data].s
-        acumulado += saldo_dia
-        return { data, entradas: byDate[data].e, saidas: byDate[data].s, saldo_dia, acumulado, saldo_banco: null as number | null, saldo_anterior: null as number | null }
-      })
+    const sortedDates = Object.keys(byDate).sort(compareDates)
 
-    // Forward-fill saldo bancario
+    // Build saldo bancário timelines first so we can derive saldoPrimeiroDia
     const saldoFiltered = saldoData.filter((r) => {
       if (emps.length > 0 && !emps.includes(r.empresa)) return false
       if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
@@ -160,10 +152,10 @@ export default function FluxoCaixa() {
       return hasAny ? total : null
     }
 
-    // saldoPrimeiroDia
+    // Saldo bancário no dia anterior ao primeiro dia do período
     let saldoPrimeiroDia: number | null = null
-    if (dias.length > 0) {
-      const firstDate = parseDate(dias[0].data)
+    if (sortedDates.length > 0) {
+      const firstDate = parseDate(sortedDates[0])
       if (firstDate) {
         const dayBefore = new Date(firstDate)
         dayBefore.setDate(dayBefore.getDate() - 1)
@@ -178,6 +170,14 @@ export default function FluxoCaixa() {
         saldoPrimeiroDia = hasAny ? total : null
       }
     }
+
+    // Acumulado começa pelo saldo bancário do dia anterior (inclui dias futuros projetados)
+    let acumulado = saldoPrimeiroDia ?? 0
+    let dias = sortedDates.map((data) => {
+      const saldo_dia = byDate[data].e - byDate[data].s
+      acumulado += saldo_dia
+      return { data, entradas: byDate[data].e, saidas: byDate[data].s, saldo_dia, acumulado, saldo_banco: null as number | null, saldo_anterior: null as number | null }
+    })
 
     // Compute saldo_banco for each day
     dias = dias.map((d) => ({ ...d, saldo_banco: computeSaldoBanco(parseDate(d.data)!) }))
