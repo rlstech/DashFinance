@@ -273,60 +273,61 @@ export default function FluxoCaixa() {
     return { entradasByObra, saidasByObra, obrasEntrada, obrasSaida }
   }, [apData, recData, filters])
 
-  const { obrasData, clientesData, totalRecebimento } = useMemo(() => {
-    if (!recData) return { obrasData: [], clientesData: [], totalRecebimento: 0 }
-    const byObra: Record<string, number> = {}
-    const byCliente: Record<string, number> = {}
-    let totalValue = 0
+  const [donutMode, setDonutMode] = useState<'entradas' | 'saidas'>('entradas')
 
+  const { obrasData, totalRecebimento, obrasSaidaData, totalSaidas: totalSaidasObra } = useMemo(() => {
+    const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
     const formatTopN = (arr: [string, number][], n = 5) => {
-      const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
       let result = arr.slice(0, n)
       const others = arr.slice(n).reduce((acc, curr) => acc + curr[1], 0)
       if (others > 0) result.push(['Outros', others])
-      return result.map(([name, value], i) => ({
-        name: name || 'N/A',
-        value,
-        color: CHART_COLORS[i % CHART_COLORS.length]
-      }))
+      return result.map(([name, value], i) => ({ name: name || 'N/A', value, color: CHART_COLORS[i % CHART_COLORS.length] }))
     }
 
-    recData.filter((r) => {
-      const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
-      const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
-      if (d1 || d2) {
-        const rd = parseDate(r.data)
-        if (!rd) return false
-        if (d1 && rd < d1) return false
-        if (d2 && rd > d2) return false
-      }
-      if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
-      if (filters.obras.length > 0 && !filters.obras.includes(r.obra)) return false
-      if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return false
-      if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return false
-      
-      const hasRealizado = filters.vis.includes('realizado') || filters.vis.includes('todos') || filters.vis.length === 0
-      const hasProjetado = filters.vis.includes('projetado') || filters.vis.includes('todos') || filters.vis.length === 0
-      const isRealizado = r.status === 'Recebida'
-      if (isRealizado && !hasRealizado) return false
-      if (!isRealizado && !hasProjetado) return false
-      
-      return true
-    }).forEach((r) => { 
-      byObra[r.obra || 'N/A'] = (byObra[r.obra || 'N/A'] || 0) + r.valor 
-      byCliente[r.cliente || 'N/A'] = (byCliente[r.cliente || 'N/A'] || 0) + r.valor
-      totalValue += r.valor
-    })
+    const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
+    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
+    const hasRealizado = filters.vis.includes('realizado') || filters.vis.includes('todos') || filters.vis.length === 0
+    const hasProjetado = filters.vis.includes('projetado') || filters.vis.includes('todos') || filters.vis.length === 0
 
-    const obArr = Object.entries(byObra).sort((a,b) => b[1] - a[1])
-    const clArr = Object.entries(byCliente).sort((a,b) => b[1] - a[1])
+    const byObraRec: Record<string, number> = {}
+    let totalRec = 0
+    if (recData) {
+      recData.filter((r) => {
+        if (d1 || d2) { const rd = parseDate(r.data); if (!rd || (d1 && rd < d1) || (d2 && rd > d2)) return false }
+        if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
+        if (filters.obras.length > 0 && !filters.obras.includes(r.obra)) return false
+        if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return false
+        if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return false
+        const isRealizado = r.status === 'Recebida'
+        if (isRealizado && !hasRealizado) return false
+        if (!isRealizado && !hasProjetado) return false
+        return true
+      }).forEach((r) => { byObraRec[r.obra || 'N/A'] = (byObraRec[r.obra || 'N/A'] || 0) + r.valor; totalRec += r.valor })
+    }
+
+    const byObraAP: Record<string, number> = {}
+    let totalAP = 0
+    if (apData) {
+      apData.filter((r) => {
+        if (d1 || d2) { const rd = parseDate(r.data); if (!rd || (d1 && rd < d1) || (d2 && rd > d2)) return false }
+        if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
+        if (filters.obras.length > 0 && !filters.obras.includes(r.obra)) return false
+        if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
+        if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
+        const isRealizado = r.origem === 'Pago'
+        if (isRealizado && !hasRealizado) return false
+        if (!isRealizado && !hasProjetado) return false
+        return true
+      }).forEach((r) => { byObraAP[r.obra || 'N/A'] = (byObraAP[r.obra || 'N/A'] || 0) + r.valor; totalAP += r.valor })
+    }
 
     return {
-      obrasData: formatTopN(obArr, 5),
-      clientesData: formatTopN(clArr, 6),
-      totalRecebimento: totalValue
+      obrasData: formatTopN(Object.entries(byObraRec).sort((a, b) => b[1] - a[1]), 5),
+      totalRecebimento: totalRec,
+      obrasSaidaData: formatTopN(Object.entries(byObraAP).sort((a, b) => b[1] - a[1]), 5),
+      totalSaidas: totalAP,
     }
-  }, [recData, filters])
+  }, [recData, apData, filters])
 
   const handleExport = () => {
     exportCSV('fluxo_caixa.csv',
@@ -366,8 +367,8 @@ export default function FluxoCaixa() {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 rounded-xl shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <Card className="lg:col-span-2 rounded-xl shadow-sm flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-medium">Fluxo de Caixa {chartMode === 'diario' ? 'Diário' : 'Mensal'}</CardTitle>
               <div className="flex gap-1">
@@ -375,25 +376,27 @@ export default function FluxoCaixa() {
                 <Button variant={chartMode === 'mensal' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setChartMode('mensal')}>Mensal</Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col justify-center">
               <CashFlowChart data={chartMode === 'diario' ? chartData : chartDataMensal} height={350} />
             </CardContent>
           </Card>
-          <div className="space-y-6">
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader><CardTitle className="text-sm font-medium">Entradas por Obra</CardTitle></CardHeader>
-              <CardContent>
-                <DonutChart data={obrasData} centerLabel="Entradas" centerValue={formatCompact(totalRecebimento)} height={160} />
-              </CardContent>
-            </Card>
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader><CardTitle className="text-sm font-medium">Entradas por Cliente (Top 6)</CardTitle></CardHeader>
-              <CardContent>
-                <DonutChart data={clientesData} centerLabel="Entradas" centerValue={formatCompact(totalRecebimento)} height={160} />
-              </CardContent>
-            </Card>
-
-          </div>
+          <Card className="rounded-xl shadow-sm flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium">{donutMode === 'entradas' ? 'Entradas' : 'Saídas'} por Obra</CardTitle>
+              <div className="flex gap-1">
+                <Button variant={donutMode === 'entradas' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setDonutMode('entradas')}>Entradas</Button>
+                <Button variant={donutMode === 'saidas' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setDonutMode('saidas')}>Saídas</Button>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col justify-center">
+              <DonutChart
+                data={donutMode === 'entradas' ? obrasData : obrasSaidaData}
+                centerLabel={donutMode === 'entradas' ? 'Entradas' : 'Saídas'}
+                centerValue={formatCompact(donutMode === 'entradas' ? totalRecebimento : totalSaidasObra)}
+                height={220}
+              />
+            </CardContent>
+          </Card>
         </div>
 
         {/* Pivot table */}
