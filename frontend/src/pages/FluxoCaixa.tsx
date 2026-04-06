@@ -380,7 +380,7 @@ export default function FluxoCaixa() {
                       </td>
                     ))}
                     <td className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
-                      {(() => { const t = necessidadeAporte.reduce((s, v) => s + (v ?? 0), 0); return t !== 0 ? formatCurrency(t) : <span className="text-muted-foreground/40">-</span> })()}
+                      {(() => { const t = necessidadeAporte.reduce((s: number, v) => s + (v ?? 0), 0); return t !== 0 ? formatCurrency(t) : <span className="text-muted-foreground/40">-</span> })()}
                     </td>
                   </tr>
                 </tbody>
