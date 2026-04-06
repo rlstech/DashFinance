@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useStatus } from '@/hooks/useFinanceiro'
 
 export default function Configuracoes() {
+  useEffect(() => { document.title = 'Configurações | DashFinance' }, [])
   const { data: status } = useStatus()
 
   return (

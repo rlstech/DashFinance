@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
@@ -43,6 +43,7 @@ const columns = [
 ]
 
 export default function FluxoCaixa() {
+  useEffect(() => { document.title = 'Fluxo de Caixa | DashFinance' }, [])
   const { data: apData, isLoading: apLoading } = useAP()
   const { data: recData, isLoading: recLoading } = useReceitas()
   const { data: saldoData, isLoading: saldoLoading } = useSaldoBanco()

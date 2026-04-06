@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
@@ -54,6 +54,7 @@ const columns = [
 ]
 
 export default function ContasAPagar() {
+  useEffect(() => { document.title = 'Contas a Pagar | DashFinance' }, [])
   const { data: ALL_DATA, isLoading } = useAP()
   const { empresas, obras, dtInicio, dtFim, origens, bancos, contas } = useFilterStore()
 

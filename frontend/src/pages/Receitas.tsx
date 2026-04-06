@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import { Download } from 'lucide-react'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
@@ -47,6 +47,7 @@ const columns = [
 ]
 
 export default function Receitas() {
+  useEffect(() => { document.title = 'Receitas | DashFinance' }, [])
   const { data: allData, isLoading } = useReceitas()
   const filters = useFilterStore()
 
