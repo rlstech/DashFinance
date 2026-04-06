@@ -168,7 +168,7 @@ export default function ContasAPagar() {
     return (
       <div className="flex h-full">
         <FilterSidebar showOrigem />
-        <div className="p-6 space-y-6 flex-1 overflow-auto">
+        <div className="px-6 pt-4 pb-6 space-y-4 flex-1 overflow-auto">
           <Skeleton className="h-14 w-full rounded-lg" />
           <div className="grid grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -184,11 +184,7 @@ export default function ContasAPagar() {
     <div className="flex h-full">
       <FilterSidebar showOrigem />
 
-      <div className="p-6 space-y-6 overflow-auto flex-1">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">Contas a Pagar</h1>
-        </div>
-
+      <div className="px-6 pt-4 pb-6 space-y-4 overflow-auto flex-1">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="rounded-xl shadow-sm">
