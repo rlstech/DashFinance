@@ -199,6 +199,15 @@ export default function FluxoCaixa() {
     [diasData]
   )
 
+  const necessidadeAporte = useMemo(() => {
+    let acumAnterior = 0
+    return diasData.map((d) => {
+      const necessidade = d.saidas - d.entradas - Math.max(acumAnterior, 0)
+      acumAnterior = d.acumulado
+      return necessidade > 0 ? -necessidade : null
+    })
+  }, [diasData])
+
   const { obrasData, clientesData, totalRecebimento } = useMemo(() => {
     if (!recData) return { obrasData: [], clientesData: [], totalRecebimento: 0 }
     const byObra: Record<string, number> = {}
@@ -313,17 +322,72 @@ export default function FluxoCaixa() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader><CardTitle className="text-sm font-medium">Estatísticas</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Maior entrada</span><span className="font-medium text-emerald-400">{formatCompact(Math.max(0, ...diasData.map((d) => d.entradas)))}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Maior saída</span><span className="font-medium text-red-400">{formatCompact(Math.max(0, ...diasData.map((d) => d.saidas)))}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Dias positivos</span><span className="font-medium">{kpis.diasPositivos}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Dias negativos</span><span className="font-medium">{kpis.totalDias - kpis.diasPositivos}</span></div>
-              </CardContent>
-            </Card>
           </div>
         </div>
+
+        {/* Pivot table */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader><CardTitle className="text-sm font-medium">Fluxo de Caixa por Dia</CardTitle></CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="sticky left-0 bg-card z-10 text-left px-4 py-2 font-medium text-muted-foreground min-w-[160px]">Rótulos de Linha</th>
+                    {diasData.map((d) => (
+                      <th key={d.data} className="text-right px-3 py-2 font-medium text-muted-foreground whitespace-nowrap min-w-[100px]">{d.data}</th>
+                    ))}
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground whitespace-nowrap min-w-[110px]">Total Geral</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border/50 bg-emerald-950/20">
+                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Entrada</td>
+                    {diasData.map((d) => (
+                      <td key={d.data} className="text-right px-3 py-2 tabular-nums text-emerald-400">
+                        {d.entradas > 0 ? formatCurrency(d.entradas) : <span className="text-muted-foreground/40">-</span>}
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-emerald-400">
+                      {formatCurrency(diasData.reduce((s, d) => s + d.entradas, 0))}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border/50 bg-red-950/20">
+                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Saída</td>
+                    {diasData.map((d) => (
+                      <td key={d.data} className="text-right px-3 py-2 tabular-nums text-red-400">
+                        {d.saidas > 0 ? formatCurrency(d.saidas) : <span className="text-muted-foreground/40">-</span>}
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
+                      {formatCurrency(diasData.reduce((s, d) => s + d.saidas, 0))}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Saldo Acumulado</td>
+                    {diasData.map((d) => (
+                      <td key={d.data} className={`text-right px-3 py-2 tabular-nums font-medium ${d.acumulado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {formatCurrency(d.acumulado)}
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-muted-foreground">-</td>
+                  </tr>
+                  <tr className="bg-orange-950/20">
+                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-medium" style={{background: 'hsl(var(--card))'}}>Necessidade de Aporte</td>
+                    {necessidadeAporte.map((v, i) => (
+                      <td key={diasData[i].data} className="text-right px-3 py-2 tabular-nums text-red-400">
+                        {v !== null ? formatCurrency(v) : <span className="text-muted-foreground/40">-</span>}
+                      </td>
+                    ))}
+                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
+                      {(() => { const t = necessidadeAporte.reduce((s, v) => s + (v ?? 0), 0); return t !== 0 ? formatCurrency(t) : <span className="text-muted-foreground/40">-</span> })()}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Table */}
         <Card className="rounded-xl shadow-sm">
