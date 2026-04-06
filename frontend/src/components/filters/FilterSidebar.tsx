@@ -42,7 +42,7 @@ export function FilterSidebar({ showOrigem, showStatus, showVis }: FilterSidebar
 
   const origens = ['Emissao', 'A Confirmar', 'Pago']
   const statusList = ['A Receber', 'Recebida']
-  const visList = ['todos', 'realizado', 'projetado']
+  const visList = ['realizado', 'projetado']
 
   return (
     <aside className="w-[280px] h-full flex flex-col bg-card border-r">
