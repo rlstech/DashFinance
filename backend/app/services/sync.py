@@ -100,9 +100,10 @@ async def _precompute_filters(
 
     empresas = sorted(set(r.get("empresa", "") for r in all_data if r.get("empresa")))
 
-    obras_por_empresa: dict[str, list[str]] = {}
-    bancos_por_empresa: dict[str, list[str]] = {}
-    contas_por_empresa: dict[str, list[str]] = {}
+    obras_por_empresa: dict[str, set[str]] = {}
+    bancos_por_empresa: dict[str, set[str]] = {}
+    contas_por_empresa: dict[str, set[str]] = {}
+    contas_por_empresa_banco: dict[str, dict[str, set[str]]] = {}
 
     for r in all_data:
         emp = r.get("empresa", "")
@@ -114,12 +115,18 @@ async def _precompute_filters(
             bancos_por_empresa.setdefault(emp, set()).add(r["banco"])
         if r.get("conta"):
             contas_por_empresa.setdefault(emp, set()).add(r["conta"])
+        if r.get("banco") and r.get("conta"):
+            contas_por_empresa_banco.setdefault(emp, {}).setdefault(r["banco"], set()).add(r["conta"])
 
     tree = {
         "empresas": empresas,
         "obras_por_empresa": {k: sorted(v) for k, v in obras_por_empresa.items()},
         "bancos_por_empresa": {k: sorted(v) for k, v in bancos_por_empresa.items()},
         "contas_por_empresa": {k: sorted(v) for k, v in contas_por_empresa.items()},
+        "contas_por_empresa_banco": {
+            emp: {b: sorted(cs) for b, cs in bdict.items()}
+            for emp, bdict in contas_por_empresa_banco.items()
+        },
     }
     await set_cached("dash:filters:tree", tree, ttl=ttl)
 

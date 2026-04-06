@@ -7,6 +7,19 @@ from app.services.database import get_db
 
 EMPRESA_MAP = {1: "COMBRASEN", 3: "DRESDEN", 4: "TRUST", 5: "GAMA 01", 6: "CONSÓRCIO HMSJ"}
 
+# Bancos a excluir por empresa (Receitas, AP e Saldo Bancário).
+BLOCKED_BANCOS: dict[str, set[str]] = {
+    "COMBRASEN": {"-1", "8", "196", "199", "755", "997", "998", "999"},
+    "GAMA 01": {"-1", "998"},
+    "TRUST": {"-1", "998"},
+    "DRESDEN": {"-1", "341"},
+    "CONSÓRCIO HMSJ": {"-1", "998"},
+}
+
+
+def _is_blocked_banco(empresa: str, banco: str) -> bool:
+    return banco in BLOCKED_BANCOS.get(empresa, set())
+
 _SALDO_CONTA_COL: str | None = None
 
 
@@ -83,7 +96,7 @@ def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         cur = conn.cursor(as_dict=True)
         cur.execute(sql, (de, ate, de, ate))
         rows = cur.fetchall()
-    return [
+    result = [
         {
             "empresa": r["Empresa"] or "",
             "obra": r["Obra"] or "",
@@ -97,6 +110,7 @@ def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         }
         for r in rows
     ]
+    return [r for r in result if not _is_blocked_banco(r["empresa"], r["banco"])]
 
 
 def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
@@ -193,7 +207,7 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         cur = conn.cursor(as_dict=True)
         cur.execute(sql, (de, ate, de, ate, de, ate))
         rows = cur.fetchall()
-    return [
+    result = [
         {
             "empresa": r["Empresa"] or "",
             "obra": r["Obra"] or "",
@@ -208,6 +222,8 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         }
         for r in rows
     ]
+    # Receitas com banco vazio (ex.: "A Receber" sem conta definida) passam normalmente.
+    return [r for r in result if not (r["banco"] and _is_blocked_banco(r["empresa"], r["banco"]))]
 
 
 def get_saldo_banco(de: str = "2020-01-01", ate: str = "2030-12-31") -> list[dict]:
@@ -236,7 +252,7 @@ def get_saldo_banco(de: str = "2020-01-01", ate: str = "2030-12-31") -> list[dic
         cur = conn.cursor(as_dict=True)
         cur.execute(sql, (de, ate))
         rows = cur.fetchall()
-    return [
+    result = [
         {
             "empresa": r["Empresa"] or "",
             "banco": str(r["Banco"] or "").strip(),
@@ -246,3 +262,4 @@ def get_saldo_banco(de: str = "2020-01-01", ate: str = "2030-12-31") -> list[dic
         }
         for r in rows
     ]
+    return [r for r in result if not _is_blocked_banco(r["empresa"], r["banco"])]

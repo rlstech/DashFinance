@@ -54,6 +54,7 @@ export interface FilterTree {
   obras_por_empresa: Record<string, string[]>
   bancos_por_empresa: Record<string, string[]>
   contas_por_empresa: Record<string, string[]>
+  contas_por_empresa_banco?: Record<string, Record<string, string[]>>
 }
 
 export const EMPRESA_COLORS: Record<string, string> = {

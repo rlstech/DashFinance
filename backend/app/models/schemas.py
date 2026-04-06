@@ -57,3 +57,4 @@ class FilterTree(BaseModel):
     obras_por_empresa: dict[str, list[str]] = {}
     bancos_por_empresa: dict[str, list[str]] = {}
     contas_por_empresa: dict[str, list[str]] = {}
+    contas_por_empresa_banco: dict[str, dict[str, list[str]]] = {}

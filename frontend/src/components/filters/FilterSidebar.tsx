@@ -26,9 +26,14 @@ export function FilterSidebar({ showOrigem, showStatus, showVis }: FilterSidebar
     ? filters.empresas.flatMap(emp => tree?.bancos_por_empresa?.[emp] ?? [])
     : tree?.empresas.flatMap(emp => tree?.bancos_por_empresa?.[emp] ?? []) ?? []
     
-  const contas = filters.empresas.length > 0 
-    ? filters.empresas.flatMap(emp => tree?.contas_por_empresa?.[emp] ?? [])
-    : tree?.empresas.flatMap(emp => tree?.contas_por_empresa?.[emp] ?? []) ?? []
+  // Contas dependem de empresas e (se selecionados) bancos.
+  const empresasParaContas = filters.empresas.length > 0 ? filters.empresas : (tree?.empresas ?? [])
+  const contas = empresasParaContas.flatMap(emp => {
+    if (filters.bancos.length > 0 && tree?.contas_por_empresa_banco?.[emp]) {
+      return filters.bancos.flatMap(b => tree.contas_por_empresa_banco?.[emp]?.[b] ?? [])
+    }
+    return tree?.contas_por_empresa?.[emp] ?? []
+  })
 
   // Ensure unique values for merged arrays
   const uniqueObras = [...new Set(obras)].sort()
