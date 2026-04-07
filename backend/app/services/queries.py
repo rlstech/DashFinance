@@ -16,9 +16,22 @@ BLOCKED_BANCOS: dict[str, set[str]] = {
     "CONSÓRCIO HMSJ": {"-1", "998"},
 }
 
+# Contas específicas a excluir por empresa → banco → set de contas.
+BLOCKED_CONTAS: dict[str, dict[str, set[str]]] = {
+    "COMBRASEN": {
+        "341": {"14632-6", "19721-2"},
+        "756": {"15041-0"},
+        "70":  {"10-1", "39248-X", "9999-9"},
+    },
+}
+
 
 def _is_blocked_banco(empresa: str, banco: str) -> bool:
     return banco in BLOCKED_BANCOS.get(empresa, set())
+
+
+def _is_blocked_conta(empresa: str, banco: str, conta: str) -> bool:
+    return conta in BLOCKED_CONTAS.get(empresa, {}).get(banco, set())
 
 _SALDO_CONTA_COL: str | None = None
 
@@ -110,7 +123,11 @@ def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         }
         for r in rows
     ]
-    return [r for r in result if not _is_blocked_banco(r["empresa"], r["banco"])]
+    return [
+        r for r in result
+        if not _is_blocked_banco(r["empresa"], r["banco"])
+        and not _is_blocked_conta(r["empresa"], r["banco"], r["conta"])
+    ]
 
 
 def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
@@ -223,7 +240,11 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         for r in rows
     ]
     # Receitas com banco vazio (ex.: "A Receber" sem conta definida) passam normalmente.
-    return [r for r in result if not (r["banco"] and _is_blocked_banco(r["empresa"], r["banco"]))]
+    return [
+        r for r in result
+        if not (r["banco"] and _is_blocked_banco(r["empresa"], r["banco"]))
+        and not (r["banco"] and _is_blocked_conta(r["empresa"], r["banco"], r["conta"]))
+    ]
 
 
 def get_saldo_banco(de: str = "2020-01-01", ate: str = "2030-12-31") -> list[dict]:
@@ -262,4 +283,8 @@ def get_saldo_banco(de: str = "2020-01-01", ate: str = "2030-12-31") -> list[dic
         }
         for r in rows
     ]
-    return [r for r in result if not _is_blocked_banco(r["empresa"], r["banco"])]
+    return [
+        r for r in result
+        if not _is_blocked_banco(r["empresa"], r["banco"])
+        and not _is_blocked_conta(r["empresa"], r["banco"], r["conta"])
+    ]
