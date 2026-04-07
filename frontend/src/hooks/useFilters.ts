@@ -14,6 +14,8 @@ interface FilterState {
   status_list: string[]
   // Fluxo-specific
   vis: string[]
+  // UI state
+  sidebarOpen: boolean
 
   setFilter: (key: string, value: string | string[]) => void
   setEmpresas: (empresas: string[]) => void
@@ -23,6 +25,7 @@ interface FilterState {
   setOrigens: (origens: string[]) => void
   setStatusList: (status_list: string[]) => void
   setVis: (vis: string[]) => void
+  toggleSidebar: () => void
   resetFilters: () => void
 }
 
@@ -38,6 +41,7 @@ const defaultState = {
   origens: [] as string[],
   status_list: [] as string[],
   vis: ['todos'] as string[],
+  sidebarOpen: false,
 }
 
 export const useFilterStore = create<FilterState>()(
@@ -54,9 +58,10 @@ export const useFilterStore = create<FilterState>()(
       setOrigens: (origens) => set({ origens }),
       setStatusList: (status_list) => set({ status_list }),
       setVis: (vis) => set({ vis }),
+      toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
 
       resetFilters: () => set(defaultState),
     }),
-    { name: 'dashfinance-filters-v2' }
+    { name: 'dashfinance-filters-v2', partialize: (s) => ({ ...s, sidebarOpen: false }) }
   )
 )

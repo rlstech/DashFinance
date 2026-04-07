@@ -31,7 +31,7 @@ function fmt(v: number | null): string {
 }
 
 function buildHeaders(dias: DiaDataExport[]): string[] {
-  return ['Rótulos de Linha', ...dias.map(d => d.data), 'Total Geral']
+  return ['Rótulos de Linha', ...dias.map(d => d.data.slice(0, 5)), 'Total']
 }
 
 // Returns rows as { label, values, type }
@@ -140,11 +140,14 @@ export function exportPivotPDF(data: PivotExportData): void {
   const rowData = buildRowData(data)
   const bodyRows = rowData.map(r => [r.label, ...r.cells])
 
-  // Dynamic column widths: 277mm usable (297 - 2*8 + 2 margin trim)
+  // Dynamic column widths — always fits exactly within page width
   const pageW = 297 - marginX * 2
-  const labelW = 35
-  const totalW = 22
-  const dateW = Math.max(18, Math.floor((pageW - labelW - totalW) / Math.max(diasData.length, 1)))
+  const labelW = 32
+  const totalW = 20
+  const available = pageW - labelW - totalW
+  const dateW = available / Math.max(diasData.length, 1)
+  const fontSize = dateW < 14 ? 6 : 7
+  const cellPad = dateW < 14 ? 1 : 1.5
 
   const colStyles: Record<number, object> = {
     0: { halign: 'left', cellWidth: labelW, fontStyle: 'bold' },
@@ -159,10 +162,11 @@ export function exportPivotPDF(data: PivotExportData): void {
     head: [headers],
     body: bodyRows,
     theme: 'grid',
+    tableWidth: pageW,
     margin: { left: marginX, right: marginX },
     styles: {
-      fontSize: 7,
-      cellPadding: { top: 1.5, bottom: 1.5, left: 1.5, right: 1.5 },
+      fontSize,
+      cellPadding: { top: cellPad, bottom: cellPad, left: cellPad, right: cellPad },
       halign: 'right',
       overflow: 'linebreak',
     },
@@ -170,7 +174,7 @@ export function exportPivotPDF(data: PivotExportData): void {
       fillColor: COLOR_HEADER_BG,
       textColor: COLOR_WHITE,
       fontStyle: 'bold',
-      fontSize: 7,
+      fontSize,
     },
     columnStyles: colStyles,
     didParseCell: (hookData) => {

@@ -366,7 +366,7 @@ export default function FluxoCaixa() {
     return (
       <div className="flex h-full">
         <FilterSidebar showVis />
-        <div className="px-6 pt-4 pb-6 space-y-4 flex-1 overflow-auto">
+        <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 flex-1 overflow-auto">
           <Skeleton className="h-14 w-full rounded-xl" />
           <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
           <Skeleton className="h-96 rounded-xl" />
@@ -379,7 +379,7 @@ export default function FluxoCaixa() {
     <div className="flex h-full">
       <FilterSidebar showVis />
       
-      <div className="px-6 pt-4 pb-6 space-y-4 overflow-auto flex-1">
+      <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 overflow-auto flex-1">
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Entradas</CardTitle></CardHeader>
