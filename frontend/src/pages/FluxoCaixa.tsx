@@ -221,8 +221,11 @@ export default function FluxoCaixa() {
 
   const necessidadeAporte = useMemo(() => {
     let acumAnterior = 0
-    return diasData.map((d) => {
-      const necessidade = d.saidas - d.entradas - Math.max(acumAnterior, 0)
+    return diasData.map((d, i) => {
+      const disponivel = i === 0
+        ? Math.max(d.saldo_banco ?? 0, 0)
+        : Math.max(acumAnterior, 0)
+      const necessidade = d.saidas - d.entradas - disponivel
       acumAnterior = d.acumulado
       return necessidade > 0 ? -necessidade : null
     })

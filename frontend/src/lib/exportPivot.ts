@@ -27,7 +27,7 @@ export interface PivotExportData {
 
 function fmt(v: number | null): string {
   if (v === null || v === undefined) return ''
-  return formatCurrency(v)
+  return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
 }
 
 function buildHeaders(dias: DiaDataExport[]): string[] {
@@ -144,7 +144,7 @@ export function exportPivotPDF(data: PivotExportData): void {
   const pageW = 297 - marginX * 2
   const labelW = 35
   const totalW = 22
-  const dateW = Math.max(12, Math.floor((pageW - labelW - totalW) / Math.max(diasData.length, 1)))
+  const dateW = Math.max(18, Math.floor((pageW - labelW - totalW) / Math.max(diasData.length, 1)))
 
   const colStyles: Record<number, object> = {
     0: { halign: 'left', cellWidth: labelW, fontStyle: 'bold' },
@@ -164,7 +164,7 @@ export function exportPivotPDF(data: PivotExportData): void {
       fontSize: 7,
       cellPadding: { top: 1.5, bottom: 1.5, left: 1.5, right: 1.5 },
       halign: 'right',
-      overflow: 'hidden',
+      overflow: 'linebreak',
     },
     headStyles: {
       fillColor: COLOR_HEADER_BG,
@@ -228,8 +228,8 @@ export function exportPivotXLSX(data: PivotExportData): void {
   // Column widths
   ws['!cols'] = [
     { wch: 28 },                                           // label
-    ...diasData.map(() => ({ wch: 14 })),                  // dates
-    { wch: 16 },                                           // Total Geral
+    ...diasData.map(() => ({ wch: 16 })),                  // dates
+    { wch: 18 },                                           // Total Geral
   ]
 
   const wb = XLSX.utils.book_new()
