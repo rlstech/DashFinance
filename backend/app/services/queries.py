@@ -19,9 +19,10 @@ BLOCKED_BANCOS: dict[str, set[str]] = {
 # Contas específicas a excluir por empresa → banco → set de contas.
 BLOCKED_CONTAS: dict[str, dict[str, set[str]]] = {
     "COMBRASEN": {
-        "341": {"14632-6", "19721-2"},
-        "756": {"15041-0"},
+        "341": {"14632-6", "19721-2", "01557-3", "30333-1"},
+        "756": {"15041-0", "10290-3"},
         "70":  {"10-1", "39248-X", "9999-9"},
+        "707": {"722041-5"},
     },
 }
 
