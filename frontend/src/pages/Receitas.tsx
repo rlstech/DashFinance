@@ -199,15 +199,19 @@ export default function Receitas() {
       formatCurrency(r.valor),
     ])
 
+    // col widths must sum to exactly 190mm: 38+58+22+18+18+16+20 = 190
     autoTable(doc, {
       startY: y,
       head: [cols],
       body: rows,
+      foot: [['', '', '', '', '', 'TOTAL', formatCurrency(kpis.total)]],
       theme: 'grid',
       tableWidth: 190,
       margin: { left: marginX, right: marginX },
+      showFoot: 'lastPage',
       styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
       headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      footStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       columnStyles: {
         0: { cellWidth: 38 },
         1: { cellWidth: 58 },

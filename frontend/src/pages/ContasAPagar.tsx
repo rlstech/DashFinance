@@ -209,23 +209,27 @@ export default function ContasAPagar() {
       formatCurrency(r.valor),
     ])
 
+    // col widths must sum to exactly 190mm: 33+16+46+20+17+20+16+22 = 190
     autoTable(doc, {
       startY: y,
       head: [cols],
       body: rows,
+      foot: [['', '', '', '', '', '', 'TOTAL', formatCurrency(kpis.total)]],
       theme: 'grid',
       tableWidth: 190,
       margin: { left: marginX, right: marginX },
+      showFoot: 'lastPage',
       styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
       headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      footStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 18, halign: 'center' },
-        2: { cellWidth: 48 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 22 },
-        6: { cellWidth: 15, halign: 'center' },
+        0: { cellWidth: 33 },
+        1: { cellWidth: 16, halign: 'center' },
+        2: { cellWidth: 46 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 17 },
+        5: { cellWidth: 20 },
+        6: { cellWidth: 16, halign: 'center' },
         7: { cellWidth: 22, halign: 'right' },
       },
     })
