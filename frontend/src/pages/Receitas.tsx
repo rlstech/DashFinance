@@ -1,6 +1,9 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import { Download } from 'lucide-react'
+import { FileSpreadsheet, FileText } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { TimelineChart } from '@/components/charts/TimelineChart'
 import { DonutChart } from '@/components/charts/DonutChart'
@@ -11,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { useReceitas } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
-import { formatCurrency, formatCompact, parseDate, exportCSV } from '@/lib/formatters'
+import { formatCurrency, formatCompact, parseDate } from '@/lib/formatters'
 import type { ReceitaRecord } from '@/types'
 import { EMPRESA_COLORS, TIPO_LABEL } from '@/types'
 
@@ -87,23 +90,32 @@ export default function Receitas() {
     return { total, recebido, aReceber, clientes, taxa }
   }, [filtered])
 
+  const [chartMode, setChartMode] = useState<'daily' | 'monthly'>('daily')
+
   const chartData = useMemo(() => {
-    const byMonth: Record<string, { recebida: number; a_receber: number }> = {}
+    const byPeriod: Record<string, { recebida: number; a_receber: number }> = {}
     filtered.forEach((r) => {
       const d = parseDate(r.data)
       if (!d) return
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      if (!byMonth[key]) byMonth[key] = { recebida: 0, a_receber: 0 }
-      if (r.status === 'Recebida') byMonth[key].recebida += r.valor
-      else byMonth[key].a_receber += r.valor
+      const key = chartMode === 'daily'
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      if (!byPeriod[key]) byPeriod[key] = { recebida: 0, a_receber: 0 }
+      if (r.status === 'Recebida') byPeriod[key].recebida += r.valor
+      else byPeriod[key].a_receber += r.valor
     })
-    return Object.entries(byMonth)
+    return Object.entries(byPeriod)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, v]) => {
-        const [y, m] = key.split('-')
-        return { label: `${m}/${y}`, ...v }
+        if (chartMode === 'daily') {
+          const [, m, dd] = key.split('-')
+          return { label: `${dd}/${m}`, ...v }
+        } else {
+          const [y, m] = key.split('-')
+          return { label: `${m}/${y}`, ...v }
+        }
       })
-  }, [filtered])
+  }, [filtered, chartMode])
 
   const { obrasData, clientesData, totalRecebido } = useMemo(() => {
     if (!filtered) return { obrasData: [], clientesData: [], totalRecebido: 0 }
@@ -138,11 +150,76 @@ export default function Receitas() {
   }, [filtered])
 
 
-  const handleExport = () => {
-    exportCSV('receitas.csv',
-      ['Empresa', 'Obra', 'Cliente', 'Tipo', 'Data', 'DataVenc', 'Valor', 'Status'],
-      filtered.map((r) => [r.empresa, r.obra, r.cliente, r.tipo, r.data, r.data_venc, String(r.valor).replace('.', ','), r.status])
-    )
+  const empresaLabel = filters.empresas.length > 0 ? filters.empresas.join(', ') : 'Todas as Empresas'
+  const periodoLabel = filters.dtInicio && filters.dtFim
+    ? `${filters.dtInicio.split('-').reverse().join('/')} a ${filters.dtFim.split('-').reverse().join('/')}`
+    : 'Período completo'
+
+  const handleExportXLSX = () => {
+    const aoa = [
+      ['RECEITAS'],
+      [`Empresa: ${empresaLabel}`],
+      [`Período: ${periodoLabel}`],
+      [`Total: ${formatCurrency(kpis.total)} (${filtered.length} registros)`],
+      [],
+      ['Obra', 'Cliente', 'Tipo', 'Data', 'Data Venc.', 'Status', 'Valor'],
+      ...filtered.map((r) => [r.obra, r.cliente, TIPO_LABEL[r.tipo] || r.tipo, r.data, r.data_venc, r.status, r.valor]),
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = [{ wch: 35 }, { wch: 45 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 18 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Receitas')
+    XLSX.writeFile(wb, `receitas_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
+  }
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const marginX = 10
+    let y = 12
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 30, 30)
+    doc.text('RECEITAS', marginX, y)
+    y += 6
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Empresa: ${empresaLabel}`, marginX, y)
+    y += 5
+    doc.text(`Período: ${periodoLabel}`, marginX, y)
+    y += 5
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Total: ${formatCurrency(kpis.total)} (${filtered.length} registros)`, marginX, y)
+    y += 8
+
+    const cols = ['Obra', 'Cliente', 'Tipo', 'Data', 'Data Venc.', 'Status', 'Valor']
+    const rows = filtered.map((r) => [
+      r.obra, r.cliente, TIPO_LABEL[r.tipo] || r.tipo, r.data, r.data_venc, r.status,
+      formatCurrency(r.valor),
+    ])
+
+    autoTable(doc, {
+      startY: y,
+      head: [cols],
+      body: rows,
+      theme: 'grid',
+      tableWidth: 190,
+      margin: { left: marginX, right: marginX },
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 38 },
+        1: { cellWidth: 58 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 18, halign: 'center' },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 16, halign: 'center' },
+        6: { cellWidth: 20, halign: 'right' },
+      },
+    })
+
+    doc.save(`receitas_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
   }
 
   if (isLoading) {
@@ -195,7 +272,33 @@ export default function Receitas() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 rounded-xl shadow-sm">
-            <CardHeader><CardTitle className="text-sm font-medium">Timeline de Recebimentos</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium">
+                {chartMode === 'daily' ? 'Timeline Diário de Recebimentos' : 'Timeline Mensal de Recebimentos'}
+              </CardTitle>
+              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+                <button
+                  onClick={() => setChartMode('daily')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    chartMode === 'daily'
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Diário
+                </button>
+                <button
+                  onClick={() => setChartMode('monthly')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    chartMode === 'monthly'
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Mensal
+                </button>
+              </div>
+            </CardHeader>
             <CardContent>
               <TimelineChart data={chartData} bars={[
                 { key: 'recebida', color: '#065f46', name: 'Recebida' },
@@ -224,10 +327,33 @@ export default function Receitas() {
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">Detalhamento</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleExport} className="rounded-lg"><Download className="h-4 w-4 mr-2" />Exportar</Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportXLSX} className="rounded-lg">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                XLSX
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportPDF} className="rounded-lg">
+                <FileText className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <DataTable data={filtered} columns={columns as ColumnDef<ReceitaRecord, unknown>[]} searchPlaceholder="Buscar cliente, obra..." />
+            <DataTable
+              data={filtered}
+              columns={columns as ColumnDef<ReceitaRecord, unknown>[]}
+              searchPlaceholder="Buscar cliente, obra..."
+              footerRow={
+                <tr>
+                  <td colSpan={6} className="px-4 py-2 text-sm font-semibold text-right text-muted-foreground">
+                    Total do Período
+                  </td>
+                  <td className="px-4 py-2 text-sm font-bold text-right tabular-nums">
+                    {formatCurrency(kpis.total)}
+                  </td>
+                </tr>
+              }
+            />
           </CardContent>
         </Card>
       </div>

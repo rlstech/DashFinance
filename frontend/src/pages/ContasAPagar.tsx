@@ -1,6 +1,9 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import { Download } from 'lucide-react'
+import { FileSpreadsheet, FileText } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { TimelineChart } from '@/components/charts/TimelineChart'
 import { DonutChart } from '@/components/charts/DonutChart'
@@ -11,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { useAP } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
-import { formatCurrency, formatCompact, parseDate, exportCSV } from '@/lib/formatters'
+import { formatCurrency, formatCompact, parseDate } from '@/lib/formatters'
 import type { APRecord } from '@/types'
 import { EMPRESA_COLORS, EMPRESA_ABBR } from '@/types'
 
@@ -96,12 +99,16 @@ export default function ContasAPagar() {
     return { total, emissao, aConfirmar, pago }
   }, [filteredData])
 
+  const [chartMode, setChartMode] = useState<'daily' | 'monthly'>('daily')
+
   const timelineData = useMemo(() => {
     const map = new Map<string, { emissao: number; a_confirmar: number }>()
     filteredData.forEach((r) => {
       const d = parseDate(r.data)
       if (!d) return
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const key = chartMode === 'daily'
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const entry = map.get(key) ?? { emissao: 0, a_confirmar: 0 }
       if (r.origem === 'Emissao') entry.emissao += r.valor
       else if (r.origem === 'A Confirmar') entry.a_confirmar += r.valor
@@ -110,10 +117,15 @@ export default function ContasAPagar() {
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, val]) => {
-        const [y, m] = key.split('-')
-        return { label: `${m}/${y}`, emissao: val.emissao, a_confirmar: val.a_confirmar }
+        if (chartMode === 'daily') {
+          const [, m, dd] = key.split('-')
+          return { label: `${dd}/${m}`, emissao: val.emissao, a_confirmar: val.a_confirmar }
+        } else {
+          const [y, m] = key.split('-')
+          return { label: `${m}/${y}`, emissao: val.emissao, a_confirmar: val.a_confirmar }
+        }
       })
-  }, [filteredData])
+  }, [filteredData, chartMode])
 
   const { categoriasData, fornecedoresData, totalValor } = useMemo(() => {
     if (!filteredData) return { categoriasData: [], fornecedoresData: [], totalValor: 0 }
@@ -148,20 +160,77 @@ export default function ContasAPagar() {
   }, [filteredData])
 
 
-  function handleExport() {
-    const headers = ['Empresa', 'Obra', 'Data', 'Fornecedor', 'Banco', 'Conta', 'Categoria', 'Origem', 'Valor']
+  const empresaLabel = empresas.length > 0 ? empresas.join(', ') : 'Todas as Empresas'
+  const periodoLabel = dtInicio && dtFim
+    ? `${dtInicio.split('-').reverse().join('/')} a ${dtFim.split('-').reverse().join('/')}`
+    : 'Período completo'
+
+  function handleExportXLSX() {
+    const aoa = [
+      ['CONTAS A PAGAR'],
+      [`Empresa: ${empresaLabel}`],
+      [`Período: ${periodoLabel}`],
+      [`Total: ${formatCurrency(kpis.total)} (${filteredData.length} registros)`],
+      [],
+      ['Obra', 'Data', 'Fornecedor', 'Banco', 'Conta', 'Categoria', 'Origem', 'Valor'],
+      ...filteredData.map((r) => [r.obra, r.data, r.fornecedor, r.banco, r.conta, r.categoria, r.origem, r.valor]),
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = [{ wch: 35 }, { wch: 12 }, { wch: 40 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 18 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Contas a Pagar')
+    XLSX.writeFile(wb, `contas_a_pagar_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
+  }
+
+  function handleExportPDF() {
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const marginX = 10
+    let y = 12
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 30, 30)
+    doc.text('CONTAS A PAGAR', marginX, y)
+    y += 6
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Empresa: ${empresaLabel}`, marginX, y)
+    y += 5
+    doc.text(`Período: ${periodoLabel}`, marginX, y)
+    y += 5
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Total: ${formatCurrency(kpis.total)} (${filteredData.length} registros)`, marginX, y)
+    y += 8
+
+    const cols = ['Obra', 'Data', 'Fornecedor', 'Banco', 'Conta', 'Categoria', 'Origem', 'Valor']
     const rows = filteredData.map((r) => [
-      r.empresa,
-      r.obra,
-      r.data,
-      r.fornecedor,
-      r.banco,
-      r.conta,
-      r.categoria,
-      r.origem,
-      r.valor.toFixed(2).replace('.', ','),
+      r.obra, r.data, r.fornecedor, r.banco, r.conta, r.categoria, r.origem,
+      formatCurrency(r.valor),
     ])
-    exportCSV('contas_a_pagar.csv', headers, rows)
+
+    autoTable(doc, {
+      startY: y,
+      head: [cols],
+      body: rows,
+      theme: 'grid',
+      tableWidth: 190,
+      margin: { left: marginX, right: marginX },
+      styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+      headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 48 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 22 },
+        6: { cellWidth: 15, halign: 'center' },
+        7: { cellWidth: 22, halign: 'right' },
+      },
+    })
+
+    doc.save(`contas_a_pagar_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
   }
 
   if (isLoading) {
@@ -253,8 +322,32 @@ export default function ContasAPagar() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 rounded-xl shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Evolução Mensal</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium">
+                {chartMode === 'daily' ? 'Evolução Diária' : 'Evolução Mensal'}
+              </CardTitle>
+              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+                <button
+                  onClick={() => setChartMode('daily')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    chartMode === 'daily'
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Diário
+                </button>
+                <button
+                  onClick={() => setChartMode('monthly')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    chartMode === 'monthly'
+                      ? 'bg-primary text-primary-foreground font-medium'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Mensal
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
               <TimelineChart
@@ -303,16 +396,32 @@ export default function ContasAPagar() {
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium">Detalhamento</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleExport} className="rounded-lg">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar CSV
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportXLSX} className="rounded-lg">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                XLSX
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportPDF} className="rounded-lg">
+                <FileText className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <DataTable
               data={filteredData}
               columns={columns as ColumnDef<APRecord, unknown>[]}
               searchPlaceholder="Buscar fornecedor, empresa..."
+              footerRow={
+                <tr>
+                  <td colSpan={6} className="px-4 py-2 text-sm font-semibold text-right text-muted-foreground">
+                    Total do Período
+                  </td>
+                  <td className="px-4 py-2 text-sm font-bold text-right tabular-nums">
+                    {formatCurrency(kpis.total)}
+                  </td>
+                </tr>
+              }
             />
           </CardContent>
         </Card>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -18,9 +18,10 @@ interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
   pageSize?: number
   searchPlaceholder?: string
+  footerRow?: ReactNode
 }
 
-export function DataTable<T>({ data, columns, pageSize = 20, searchPlaceholder = 'Buscar...' }: DataTableProps<T>) {
+export function DataTable<T>({ data, columns, pageSize = 20, searchPlaceholder = 'Buscar...', footerRow }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
 
@@ -94,6 +95,11 @@ export function DataTable<T>({ data, columns, pageSize = 20, searchPlaceholder =
               </tr>
             )}
           </tbody>
+          {footerRow && (
+            <tfoot className="border-t-2 border-border bg-muted/50">
+              {footerRow}
+            </tfoot>
+          )}
         </table>
       </div>
 
