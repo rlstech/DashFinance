@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 
 type Preset = 'hoje' | '7dias' | 'quinzenal' | 'mes' | 'bimestre' | 'trimestre' | 'semestre' | 'ano'
@@ -9,6 +10,38 @@ interface DateRangeSelectorProps {
   onEndDateChange: (val: string) => void
 }
 
+function getPresetRange(preset: Preset): [string, string] {
+  const today = new Date()
+  const fmt = (d: Date) => d.toISOString().split('T')[0]
+  const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r }
+
+  switch (preset) {
+    case 'hoje': { const d = fmt(today); return [d, d] }
+    case '7dias': return [fmt(today), fmt(addDays(today, 6))]
+    case 'quinzenal': return [fmt(today), fmt(addDays(today, 14))]
+    case 'mes': return [
+      fmt(new Date(today.getFullYear(), today.getMonth(), 1)),
+      fmt(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+    ]
+    case 'bimestre': { const b = Math.floor(today.getMonth() / 2); return [
+      fmt(new Date(today.getFullYear(), b * 2, 1)),
+      fmt(new Date(today.getFullYear(), b * 2 + 2, 0)),
+    ]}
+    case 'trimestre': { const q = Math.floor(today.getMonth() / 3); return [
+      fmt(new Date(today.getFullYear(), q * 3, 1)),
+      fmt(new Date(today.getFullYear(), q * 3 + 3, 0)),
+    ]}
+    case 'semestre': { const s = today.getMonth() < 6 ? 0 : 1; return [
+      fmt(new Date(today.getFullYear(), s * 6, 1)),
+      fmt(new Date(today.getFullYear(), s * 6 + 6, 0)),
+    ]}
+    case 'ano': return [
+      fmt(new Date(today.getFullYear(), 0, 1)),
+      fmt(new Date(today.getFullYear(), 11, 31)),
+    ]
+  }
+}
+
 export function DateRangeSelector({
   startDate,
   endDate,
@@ -16,58 +49,19 @@ export function DateRangeSelector({
   onEndDateChange,
 }: DateRangeSelectorProps) {
   const handlePreset = (preset: Preset) => {
-    const today = new Date()
-    const fmt = (d: Date) => d.toISOString().split('T')[0]
-    const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r }
-
-    switch (preset) {
-      case 'hoje': {
-        const d = fmt(today)
-        onStartDateChange(d); onEndDateChange(d)
-        break
-      }
-      case '7dias':
-        onStartDateChange(fmt(today))
-        onEndDateChange(fmt(addDays(today, 6)))
-        break
-      case 'quinzenal':
-        onStartDateChange(fmt(today))
-        onEndDateChange(fmt(addDays(today, 14)))
-        break
-      case 'mes': {
-        const first = new Date(today.getFullYear(), today.getMonth(), 1)
-        const last = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-        onStartDateChange(fmt(first)); onEndDateChange(fmt(last))
-        break
-      }
-      case 'bimestre': {
-        const bim = Math.floor(today.getMonth() / 2)
-        const first = new Date(today.getFullYear(), bim * 2, 1)
-        const last = new Date(today.getFullYear(), bim * 2 + 2, 0)
-        onStartDateChange(fmt(first)); onEndDateChange(fmt(last))
-        break
-      }
-      case 'trimestre': {
-        const q = Math.floor(today.getMonth() / 3)
-        const first = new Date(today.getFullYear(), q * 3, 1)
-        const last = new Date(today.getFullYear(), q * 3 + 3, 0)
-        onStartDateChange(fmt(first)); onEndDateChange(fmt(last))
-        break
-      }
-      case 'semestre': {
-        const sem = today.getMonth() < 6 ? 0 : 1
-        const first = new Date(today.getFullYear(), sem * 6, 1)
-        const last = new Date(today.getFullYear(), sem * 6 + 6, 0)
-        onStartDateChange(fmt(first)); onEndDateChange(fmt(last))
-        break
-      }
-      case 'ano': {
-        onStartDateChange(fmt(new Date(today.getFullYear(), 0, 1)))
-        onEndDateChange(fmt(new Date(today.getFullYear(), 11, 31)))
-        break
-      }
-    }
+    const [s, e] = getPresetRange(preset)
+    onStartDateChange(s)
+    onEndDateChange(e)
   }
+
+  const activePreset = useMemo<Preset | null>(() => {
+    const presets: Preset[] = ['hoje', '7dias', 'quinzenal', 'mes', 'bimestre', 'trimestre', 'semestre', 'ano']
+    for (const p of presets) {
+      const [s, e] = getPresetRange(p)
+      if (s === startDate && e === endDate) return p
+    }
+    return null
+  }, [startDate, endDate])
 
   const presets: { key: Preset; label: string }[] = [
     { key: 'hoje',      label: 'Hoje'      },
@@ -88,7 +82,7 @@ export function DateRangeSelector({
         {presets.map(({ key, label }) => (
           <Button
             key={key}
-            variant="outline"
+            variant={activePreset === key ? 'default' : 'outline'}
             size="sm"
             className="h-7 text-[10px] px-1 rounded-md"
             onClick={() => handlePreset(key)}
