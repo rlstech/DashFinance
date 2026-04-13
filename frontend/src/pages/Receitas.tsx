@@ -85,9 +85,13 @@ export default function Receitas() {
     const total = filtered.reduce((s, r) => s + r.valor, 0)
     const recebido = filtered.filter((r) => r.status === 'Recebida').reduce((s, r) => s + r.valor, 0)
     const aReceber = filtered.filter((r) => r.status === 'A Receber').reduce((s, r) => s + r.valor, 0)
-    const clientes = new Set(filtered.map((r) => r.cliente).filter(Boolean)).size
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    const emAtraso = filtered
+      .filter((r) => r.status === 'A Receber' && (() => { const d = parseDate(r.data_venc); return d !== null && d < hoje })())
+      .reduce((s, r) => s + r.valor, 0)
     const taxa = total > 0 ? (recebido / total) * 100 : 0
-    return { total, recebido, aReceber, clientes, taxa }
+    return { total, recebido, aReceber, emAtraso, taxa }
   }, [filtered])
 
   const [chartMode, setChartMode] = useState<'daily' | 'monthly'>('daily')
@@ -252,8 +256,8 @@ export default function Receitas() {
             <CardContent><div className="text-2xl font-bold text-emerald-400">{formatCompact(kpis.recebido)}</div></CardContent></Card>
           <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">A Receber</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold text-amber-400">{formatCompact(kpis.aReceber)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Clientes Ativos</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{kpis.clientes}</div></CardContent></Card>
+          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Em Atraso</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold text-red-500">{formatCompact(kpis.emAtraso)}</div></CardContent></Card>
         </div>
 
         {/* Taxa de Recebimento */}
