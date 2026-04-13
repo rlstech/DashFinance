@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { useAP, useReceitas, useSaldoBanco } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
+import { useEmpresaConfig } from '@/hooks/useEmpresaConfig'
 import { formatCurrency, formatCompact, parseDate, compareDates, exportCSV } from '@/lib/formatters'
 import { EMPRESA_COLORS } from '@/types'
 
@@ -49,6 +50,7 @@ export default function FluxoCaixa() {
   const { data: recData, isLoading: recLoading } = useReceitas()
   const { data: saldoData, isLoading: saldoLoading } = useSaldoBanco()
   const filters = useFilterStore()
+  const empresaConfigs = useEmpresaConfig((s) => s.configs)
   const isLoading = apLoading || recLoading || saldoLoading
 
   const diasData = useMemo(() => {
@@ -117,15 +119,32 @@ export default function FluxoCaixa() {
     const sortedDates = Object.keys(byDate).sort(compareDates)
 
     // Build saldo bancário timelines first so we can derive saldoPrimeiroDia
-    const saldoFiltered = saldoData.filter((r) => {
-      if (emps.length > 0 && !emps.includes(r.empresa)) return false
-      if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
-      if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
-      return true
-    })
+    // Para empresas com saldo manual ativado, substitui registros do BD pelos sintéticos
+    const SYNTHETIC_DATE = '01/01/1900'
+    const saldoEfetivo = [
+      // Registros do BD, excluindo empresas com saldo manual ativo
+      ...saldoData.filter((r) => {
+        if (emps.length > 0 && !emps.includes(r.empresa)) return false
+        if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
+        if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
+        if (empresaConfigs[r.empresa]?.enabled) return false
+        return true
+      }),
+      // Registros sintéticos para empresas com saldo manual ativo
+      ...Object.entries(empresaConfigs).flatMap(([empresa, cfg]) => {
+        if (!cfg.enabled) return []
+        if (emps.length > 0 && !emps.includes(empresa)) return []
+        return Object.entries(cfg.saldos).flatMap(([bancoConta, saldo]) => {
+          const [banco, conta] = bancoConta.split('|')
+          if (filters.bancos.length > 0 && !filters.bancos.includes(banco)) return []
+          if (filters.contas.length > 0 && !filters.contas.includes(conta)) return []
+          return [{ empresa, banco, conta, data: SYNTHETIC_DATE, saldo }]
+        })
+      }),
+    ]
 
     const timelines: Record<string, { dateObj: Date; saldo: number }[]> = {}
-    saldoFiltered.forEach((r) => {
+    saldoEfetivo.forEach((r) => {
       const key = `${r.empresa}|${r.banco}|${r.conta}`
       if (!timelines[key]) timelines[key] = []
       const d = parseDate(r.data)
@@ -185,7 +204,7 @@ export default function FluxoCaixa() {
     dias = dias.map((d, i) => ({ ...d, saldo_anterior: i > 0 ? dias[i - 1].saldo_banco : saldoPrimeiroDia }))
 
     return dias
-  }, [apData, recData, saldoData, filters])
+  }, [apData, recData, saldoData, filters, empresaConfigs])
 
   const kpis = useMemo(() => {
     const totalEntradas = diasData.reduce((s, d) => s + d.entradas, 0)
