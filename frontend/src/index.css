@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* Combrasen Branding: Dark Blue (#001D24), Orange (#F25B2A), White (#F8F9FA) */
-    --background: 191 100% 5%;
+/* Combrasen Branding: Azul Noturno (#0D1B2A), Orange (#F25B2A), White (#F8F9FA) */
+    --background: 211 53% 11%;
     --foreground: 210 20% 98%;
     --card: 191 100% 8%;
     --card-foreground: 210 20% 98%;
