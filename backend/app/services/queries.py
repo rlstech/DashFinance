@@ -36,6 +36,7 @@ def _is_blocked_conta(empresa: str, banco: str, conta: str) -> bool:
     return conta in BLOCKED_CONTAS.get(empresa, {}).get(banco, set())
 
 _SALDO_CONTA_COL: str | None = None
+_VALOR_REAJ_COL: str | None = None
 
 
 def _get_saldo_conta_col() -> str | None:
@@ -54,6 +55,23 @@ def _get_saldo_conta_col() -> str | None:
         if c.lower().startswith("conta") and "banco" not in c.lower():
             return c
     return None
+
+
+def _get_valor_reaj_col() -> str | None:
+    """Descobre o nome da coluna de valor reajustado na tabela ContasReceber."""
+    with get_db() as conn:
+        cur = conn.cursor(as_dict=True)
+        cur.execute(
+            """
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'ContasReceber'
+              AND (COLUMN_NAME LIKE '%Reaj%' OR COLUMN_NAME LIKE '%Corrig%'
+                   OR COLUMN_NAME LIKE '%Atual%' OR COLUMN_NAME LIKE '%Ajust%')
+            """,
+        )
+        cols = [r["COLUMN_NAME"] for r in cur.fetchall()]
+    priority = [c for c in cols if "reaj" in c.lower() or "corrig" in c.lower()]
+    return priority[0] if priority else (cols[0] if cols else None)
 
 
 def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
@@ -133,7 +151,13 @@ def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
 
 
 def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
-    sql = """
+    global _VALOR_REAJ_COL
+    if _VALOR_REAJ_COL is None:
+        _VALOR_REAJ_COL = _get_valor_reaj_col() or ""
+
+    valor_expr = f"ISNULL(cr.{_VALOR_REAJ_COL}, cr.Valor_Prc)" if _VALOR_REAJ_COL else "cr.Valor_Prc"
+
+    sql = f"""
     SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status, Banco, Conta
     FROM (
         SELECT
@@ -148,7 +172,7 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
             cr.Tipo_Prc AS Tipo,
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS Data,
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS DataVenc,
-            cr.Valor_Prc AS Valor,
+            CASE WHEN cr.Empresa_prc = 5 THEN {valor_expr} ELSE cr.Valor_Prc END AS Valor,
             'A Receber' AS Status,
             ISNULL(CAST(pcb.NumeroBanco_pcb AS VARCHAR), ISNULL(CAST(cr.NumeroBanco_prc AS VARCHAR), '')) AS Banco,
             ISNULL(pcb.ContaBanco_pcb, ISNULL(cr.ContaBanco_prc, '')) AS Conta
