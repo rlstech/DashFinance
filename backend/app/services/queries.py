@@ -36,7 +36,7 @@ def _is_blocked_conta(empresa: str, banco: str, conta: str) -> bool:
     return conta in BLOCKED_CONTAS.get(empresa, {}).get(banco, set())
 
 _SALDO_CONTA_COL: str | None = None
-_VALOR_REAJ_COL: str | None = None
+_REAJ_TABLE: str | None = None
 
 
 def _get_saldo_conta_col() -> str | None:
@@ -57,26 +57,20 @@ def _get_saldo_conta_col() -> str | None:
     return None
 
 
-def _get_valor_reaj_col() -> str | None:
-    """Descobre o nome da coluna de valor reajustado na tabela ContasReceber.
-
-    Busca apenas colunas NUMÉRICAS cujo nome indique valor reajustado,
-    priorizando 'Reaj' e 'Corrig'. Colunas de data ou status são ignoradas.
-    """
+def _get_reaj_table() -> str | None:
+    """Descobre o nome da tabela de reajuste (ReceberReajCalc_*) no banco."""
     with get_db() as conn:
         cur = conn.cursor(as_dict=True)
         cur.execute(
             """
-            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = 'ContasReceber'
-              AND DATA_TYPE IN ('decimal', 'numeric', 'float', 'real', 'money', 'smallmoney', 'int', 'bigint', 'smallint', 'tinyint')
-              AND (COLUMN_NAME LIKE '%Valor%Reaj%' OR COLUMN_NAME LIKE '%Valor%Corrig%'
-                   OR COLUMN_NAME LIKE '%ValorReaj%' OR COLUMN_NAME LIKE '%ValorCorrig%')
+
+            SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_NAME LIKE 'ReceberReajCalc%%'
+            ORDER BY TABLE_NAME DESC
             """,
         )
-        cols = [r["COLUMN_NAME"] for r in cur.fetchall()]
-    return cols[0] if cols else None
-
+        rows = cur.fetchall()
+    return rows[0]["TABLE_NAME"] if rows else None
 
 def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
     sql = """
@@ -155,11 +149,12 @@ def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
 
 
 def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
-    global _VALOR_REAJ_COL
-    if _VALOR_REAJ_COL is None:
-        _VALOR_REAJ_COL = _get_valor_reaj_col() or ""
+    global _REAJ_TABLE
+    if _REAJ_TABLE is None:
+        _REAJ_TABLE = _get_reaj_table() or ""
 
-    valor_expr = f"CASE WHEN cr.Empresa_prc = 5 THEN ISNULL(cr.{_VALOR_REAJ_COL}, cr.Valor_Prc) ELSE cr.Valor_Prc END" if _VALOR_REAJ_COL else "cr.Valor_Prc"
+    valor_expr = "CASE WHEN cr.Empresa_prc = 5 THEN ISNULL(reaj.Valor_reaj, cr.Valor_Prc) ELSE cr.Valor_Prc END" if _REAJ_TABLE else "cr.Valor_Prc"
+    reaj_join = f"LEFT JOIN dbo.[{_REAJ_TABLE}] reaj ON reaj.Empresa_reaj = cr.Empresa_Prc AND reaj.Obra_reaj = cr.Obra_Prc AND reaj.NumVenda_reaj = cr.NumVend_Prc AND reaj.NumParc_reaj = cr.NumParc_Prc AND reaj.NumParcGer_reaj = cr.NumParcGer_Prc AND reaj.Tipo_reaj = cr.Tipo_Prc" if _REAJ_TABLE else ""
 
     sql_template = """
     SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status, Banco, Conta
@@ -185,6 +180,7 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         LEFT JOIN ParametroCobranca pcb
             ON pcb.Empresa_pcb = cr.Empresa_Prc
            AND pcb.Num_pcb = cr.NumPcb_Prc
+        {reaj_join}
         WHERE cr.Status_Prc = 0
           AND ISNULL(cr.DataPror_Prc, cr.Data_Prc) BETWEEN %s AND %s
 
@@ -253,14 +249,14 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
 
     # Try with reajuste column; if it fails, fall back to Valor_Prc only
     try:
-        sql = sql_template.format(valor_expr=valor_expr)
+        sql = sql_template.format(valor_expr=valor_expr, reaj_join=reaj_join)
         with get_db() as conn:
             cur = conn.cursor(as_dict=True)
             cur.execute(sql, (de, ate, de, ate, de, ate))
             rows = cur.fetchall()
     except Exception:
-        _VALOR_REAJ_COL = ""
-        sql = sql_template.format(valor_expr="cr.Valor_Prc")
+        _REAJ_TABLE = ""
+        sql = sql_template.format(valor_expr="cr.Valor_Prc", reaj_join="")
         with get_db() as conn:
             cur = conn.cursor(as_dict=True)
             cur.execute(sql, (de, ate, de, ate, de, ate))
