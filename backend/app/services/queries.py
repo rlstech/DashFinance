@@ -3,6 +3,7 @@ Queries SQL migradas de db.py — preservadas exatamente.
 Todas usam placeholders parametrizados (%s).
 """
 import pymssql
+from datetime import datetime, timedelta
 from app.services.database import get_db
 
 EMPRESA_MAP = {1: "COMBRASEN", 3: "DRESDEN", 4: "TRUST", 5: "GAMA 01", 6: "CONSÓRCIO HMSJ"}
@@ -240,6 +241,15 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
         }
         for r in rows
     ]
+    for r in result:
+        if r["empresa"] == "GAMA 01" and r["status"] == "A Receber":
+            try:
+                d = datetime.strptime(r["data"], "%d/%m/%Y") + timedelta(days=1)
+                r["data"] = d.strftime("%d/%m/%Y")
+                dv = datetime.strptime(r["data_venc"], "%d/%m/%Y") + timedelta(days=1)
+                r["data_venc"] = dv.strftime("%d/%m/%Y")
+            except (ValueError, TypeError):
+                pass
     # Receitas com banco vazio (ex.: "A Receber" sem conta definida) passam normalmente.
     return [
         r for r in result
