@@ -240,3 +240,155 @@ export function exportPivotXLSX(data: PivotExportData): void {
   XLSX.utils.book_append_sheet(wb, ws, 'Fluxo de Caixa')
   XLSX.writeFile(wb, `fluxo_caixa_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
 }
+
+// ─── Extrato Bancário Export ─────────────────────────────────────────────────
+
+export interface ExtratoRowExport {
+  data: string
+  tipo: string
+  descricao: string
+  obra: string
+  empresa: string
+  entrada: number | null
+  saida: number | null
+  saldo: number
+  origem: string
+  banco: string
+  conta: string
+}
+
+export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string, periodoLabel: string): void {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+  const marginX = 8
+  let y = 12
+
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(30, 30, 30)
+  doc.text(`EXTRATO BANCÁRIO: ${empresaLabel}`, marginX, y)
+  y += 6
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`PERÍODO: ${periodoLabel}`, marginX, y)
+  y += 8
+
+  const headers = ['Data', 'Tipo', 'Descrição', 'Obra', 'Empresa', 'Entrada', 'Saída', 'Saldo']
+  const bodyRows = rows.map(r => [
+    r.data,
+    r.tipo,
+    r.descricao,
+    r.obra,
+    r.empresa,
+    r.entrada !== null ? fmt(r.entrada) : '',
+    r.saida !== null ? fmt(r.saida) : '',
+    fmt(r.saldo),
+  ])
+
+  const colStyles: Record<number, object> = {
+    0: { cellWidth: 18 },
+    1: { cellWidth: 18 },
+    2: { cellWidth: 50 },
+    3: { cellWidth: 18 },
+    4: { cellWidth: 20 },
+    5: { cellWidth: 28, halign: 'right' },
+    6: { cellWidth: 28, halign: 'right' },
+    7: { cellWidth: 28, halign: 'right' },
+  }
+
+  autoTable(doc, {
+    startY: y,
+    head: [headers],
+    body: bodyRows,
+    theme: 'grid',
+    margin: { left: marginX, right: marginX },
+    styles: {
+      fontSize: 7,
+      cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 },
+      halign: 'right',
+      overflow: 'linebreak',
+    },
+    headStyles: {
+      fillColor: COLOR_HEADER_BG,
+      textColor: COLOR_WHITE,
+      fontStyle: 'bold',
+    },
+    columnStyles: colStyles,
+    didParseCell: (hookData) => {
+      if (hookData.section !== 'body') return
+      const row = rows[hookData.row.index]
+      if (!row) return
+
+      if (row.tipo === 'Saldo Inicial') {
+        hookData.cell.styles.fillColor = COLOR_SALDO_BG
+        hookData.cell.styles.fontStyle = 'bold'
+      } else if (row.tipo === 'Entrada') {
+        if (hookData.column.index === 5) {
+          hookData.cell.styles.textColor = [34, 197, 94]
+          hookData.cell.styles.fontStyle = 'bold'
+        }
+      } else if (row.tipo === 'Saída') {
+        if (hookData.column.index === 6) {
+          hookData.cell.styles.textColor = COLOR_NEG
+          hookData.cell.styles.fontStyle = 'bold'
+        }
+      }
+
+      if (hookData.column.index === 7) {
+        hookData.cell.styles.fontStyle = 'bold'
+        if (row.saldo < 0) {
+          hookData.cell.styles.textColor = COLOR_NEG
+        } else {
+          hookData.cell.styles.textColor = [34, 197, 94]
+        }
+      }
+    },
+  })
+
+  doc.save(`extrato_bancario_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
+}
+
+export function exportExtratoXLSX(rows: ExtratoRowExport[], empresaLabel: string, periodoLabel: string): void {
+  const headers = ['Data', 'Tipo', 'Descrição', 'Obra', 'Empresa', 'Entrada', 'Saída', 'Saldo', 'Origem', 'Banco', 'Conta']
+
+  const aoa: (string | number | null)[][] = [
+    [`EXTRATO BANCÁRIO: ${empresaLabel}`],
+    [`PERÍODO: ${periodoLabel}`],
+    [],
+    headers,
+    ...rows.map(r => [
+      r.data,
+      r.tipo,
+      r.descricao,
+      r.obra,
+      r.empresa,
+      r.entrada,
+      r.saida,
+      r.saldo,
+      r.origem,
+      r.banco,
+      r.conta,
+    ]),
+  ]
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+
+  ws['!cols'] = [
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 32 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 14 },
+  ]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Extrato')
+  XLSX.writeFile(wb, `extrato_bancario_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
+}

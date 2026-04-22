@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState } from 'react'
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import { Download, FileText, Sheet } from 'lucide-react'
-import { exportPivotPDF, exportPivotXLSX } from '@/lib/exportPivot'
+import { FileText, Sheet } from 'lucide-react'
+import { exportPivotPDF, exportPivotXLSX, exportExtratoPDF, exportExtratoXLSX, type ExtratoRowExport } from '@/lib/exportPivot'
 import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { CashFlowChart } from '@/components/charts/CashFlowChart'
 import { DonutChart } from '@/components/charts/DonutChart'
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { useAP, useReceitas, useSaldoBanco } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
 import { useEmpresaConfig } from '@/hooks/useEmpresaConfig'
-import { formatCurrency, formatCompact, parseDate, compareDates, exportCSV } from '@/lib/formatters'
+import { formatCurrency, formatCompact, parseDate, compareDates } from '@/lib/formatters'
 import { EMPRESA_COLORS } from '@/types'
 
 interface DiaData {
@@ -25,23 +25,79 @@ interface DiaData {
   saldo_anterior: number | null
 }
 
-const col = createColumnHelper<DiaData>()
-
-function valCell(getValue: () => number | null, positive = false) {
-  const v = getValue()
-  if (v === null || v === undefined) return <span className="text-muted-foreground">-</span>
-  const color = v >= 0 ? 'text-emerald-400' : 'text-red-400'
-  return <span className={`font-medium tabular-nums block text-right ${positive ? '' : color}`}>{formatCurrency(v)}</span>
+interface ExtratoRow {
+  id: string
+  data: string
+  tipo: 'Saldo Inicial' | 'Entrada' | 'Saída'
+  descricao: string
+  obra: string
+  empresa: string
+  entrada: number | null
+  saida: number | null
+  saldo: number
+  origem: string
+  banco: string
+  conta: string
 }
 
-const columns = [
-  col.accessor('data', { header: 'Data' }),
-  col.accessor('saldo_anterior', { header: 'Saldo Anterior', cell: (info) => valCell(info.getValue as () => number | null) }),
-  col.accessor('entradas', { header: 'Entradas', cell: (info) => <span className="font-medium tabular-nums block text-right text-emerald-400">{formatCurrency(info.getValue())}</span> }),
-  col.accessor('saidas', { header: 'Saídas', cell: (info) => <span className="font-medium tabular-nums block text-right text-red-400">{formatCurrency(info.getValue())}</span> }),
-  col.accessor('saldo_dia', { header: 'Saldo do Dia', cell: (info) => valCell(info.getValue as () => number | null) }),
-  col.accessor('acumulado', { header: 'Saldo Acumulado', cell: (info) => valCell(info.getValue as () => number | null) }),
-  col.accessor('saldo_banco', { header: 'Saldo Bancário', cell: (info) => valCell(info.getValue as () => number | null) }),
+const extratoCol = createColumnHelper<ExtratoRow>()
+
+const extratoCols = [
+  extratoCol.accessor('data', {
+    header: 'Data',
+    cell: (info) => {
+      const v = info.getValue()
+      return info.row.original.tipo === 'Saldo Inicial'
+        ? <span className="font-semibold">{v}</span>
+        : v
+    },
+  }),
+  extratoCol.accessor('tipo', {
+    header: 'Tipo',
+    cell: (info) => {
+      const v = info.getValue()
+      const cls = v === 'Entrada' ? 'text-emerald-400' : v === 'Saída' ? 'text-red-400' : 'text-muted-foreground'
+      return <span className={`${cls} font-medium text-xs`}>{v}</span>
+    },
+  }),
+  extratoCol.accessor('descricao', {
+    header: 'Descrição',
+    cell: (info) => {
+      const v = info.getValue()
+      return info.row.original.tipo === 'Saldo Inicial'
+        ? <span className="font-semibold">{v}</span>
+        : v
+    },
+  }),
+  extratoCol.accessor('obra', { header: 'Obra' }),
+  extratoCol.accessor('empresa', { header: 'Empresa' }),
+  extratoCol.accessor('entrada', {
+    header: 'Entrada',
+    cell: (info) => {
+      const v = info.getValue()
+      return v !== null
+        ? <span className="font-medium tabular-nums block text-right text-emerald-400">{formatCurrency(v)}</span>
+        : <span className="text-muted-foreground/40">—</span>
+    },
+  }),
+  extratoCol.accessor('saida', {
+    header: 'Saída',
+    cell: (info) => {
+      const v = info.getValue()
+      return v !== null
+        ? <span className="font-medium tabular-nums block text-right text-red-400">{formatCurrency(v)}</span>
+        : <span className="text-muted-foreground/40">—</span>
+    },
+  }),
+  extratoCol.accessor('saldo', {
+    header: 'Saldo',
+    cell: (info) => {
+      const v = info.getValue()
+      const isInitial = info.row.original.tipo === 'Saldo Inicial'
+      const cls = v >= 0 ? 'text-emerald-400' : 'text-red-400'
+      return <span className={`font-medium tabular-nums block text-right ${isInitial ? 'font-bold' : ''} ${cls}`}>{formatCurrency(v)}</span>
+    },
+  }),
 ]
 
 export default function FluxoCaixa() {
@@ -206,6 +262,142 @@ export default function FluxoCaixa() {
     return dias
   }, [apData, recData, saldoData, filters, empresaConfigs])
 
+  const extratoData = useMemo(() => {
+    if (!apData || !recData || !saldoData || diasData.length === 0) return []
+    const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
+    const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
+    const emps = filters.empresas
+    const obs = filters.obras
+    const visList = filters.vis
+    const hasRealizado = visList.includes('realizado') || visList.includes('todos') || visList.length === 0
+    const hasProjetado = visList.includes('projetado') || visList.includes('todos') || visList.length === 0
+
+    const filteredSaidas = apData.filter((r) => {
+      if (d1 || d2) { const rd = parseDate(r.data); if (!rd) return false; if (d1 && rd < d1) return false; if (d2 && rd > d2) return false }
+      if (emps.length > 0 && !emps.includes(r.empresa)) return false
+      if (obs.length > 0 && !obs.includes(r.obra)) return false
+      if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
+      if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
+      const isRealizado = r.origem === 'Pago'
+      if (isRealizado && !hasRealizado) return false
+      if (!isRealizado && !hasProjetado) return false
+      return true
+    })
+
+    const filteredEntradas = recData.filter((r) => {
+      if (d1 || d2) { const rd = parseDate(r.data); if (!rd) return false; if (d1 && rd < d1) return false; if (d2 && rd > d2) return false }
+      if (emps.length > 0 && !emps.includes(r.empresa)) return false
+      if (obs.length > 0 && !obs.includes(r.obra)) return false
+      if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return false
+      if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return false
+      const isRealizado = r.status === 'Recebida'
+      if (isRealizado && !hasRealizado) return false
+      if (!isRealizado && !hasProjetado) return false
+      return true
+    })
+
+    const saldoInicial = diasData[0].saldo_anterior ?? 0
+
+    interface Txn {
+      sortKey: number
+      data: string
+      tipo: 'Entrada' | 'Saída'
+      descricao: string
+      obra: string
+      empresa: string
+      entrada: number | null
+      saida: number | null
+      origem: string
+      banco: string
+      conta: string
+    }
+
+    const transactions: Txn[] = []
+
+    filteredEntradas.forEach((r) => {
+      transactions.push({
+        sortKey: 0,
+        data: r.data,
+        tipo: 'Entrada',
+        descricao: r.cliente || 'N/A',
+        obra: r.obra || 'N/A',
+        empresa: r.empresa,
+        entrada: r.valor,
+        saida: null,
+        origem: r.status,
+        banco: r.banco,
+        conta: r.conta,
+      })
+    })
+
+    filteredSaidas.forEach((r) => {
+      transactions.push({
+        sortKey: 1,
+        data: r.data,
+        tipo: 'Saída',
+        descricao: r.fornecedor || 'N/A',
+        obra: r.obra || 'N/A',
+        empresa: r.empresa,
+        entrada: null,
+        saida: r.valor,
+        origem: r.origem,
+        banco: r.banco,
+        conta: r.conta,
+      })
+    })
+
+    transactions.sort((a, b) => {
+      const da = parseDate(a.data)
+      const db = parseDate(b.data)
+      if (!da && !db) return a.sortKey - b.sortKey
+      if (!da) return 1
+      if (!db) return -1
+      const diff = da.getTime() - db.getTime()
+      if (diff !== 0) return diff
+      return a.sortKey - b.sortKey
+    })
+
+    let runningSaldo = saldoInicial
+    const result: ExtratoRow[] = [{
+      id: 'saldo-inicial',
+      data: diasData[0].data,
+      tipo: 'Saldo Inicial',
+      descricao: 'Saldo Inicial',
+      obra: '—',
+      empresa: '—',
+      entrada: null,
+      saida: null,
+      saldo: runningSaldo,
+      origem: '—',
+      banco: '—',
+      conta: '—',
+    }]
+
+    transactions.forEach((t, i) => {
+      if (t.tipo === 'Entrada') {
+        runningSaldo += (t.entrada ?? 0)
+      } else {
+        runningSaldo -= (t.saida ?? 0)
+      }
+      result.push({
+        id: `${t.tipo === 'Entrada' ? 'e' : 's'}-${i}`,
+        data: t.data,
+        tipo: t.tipo,
+        descricao: t.descricao,
+        obra: t.obra,
+        empresa: t.empresa,
+        entrada: t.entrada,
+        saida: t.saida,
+        saldo: runningSaldo,
+        origem: t.origem,
+        banco: t.banco,
+        conta: t.conta,
+      })
+    })
+
+    return result
+  }, [apData, recData, saldoData, filters, empresaConfigs, diasData])
+
   const kpis = useMemo(() => {
     const totalEntradas = diasData.reduce((s, d) => s + d.entradas, 0)
     const totalSaidas = diasData.reduce((s, d) => s + d.saidas, 0)
@@ -352,11 +544,25 @@ export default function FluxoCaixa() {
     }
   }, [recData, apData, filters])
 
-  const handleExport = () => {
-    exportCSV('fluxo_caixa.csv',
-      ['Data', 'Entradas', 'Saidas', 'Saldo do Dia', 'Saldo Acumulado'],
-      diasData.map((d) => [d.data, String(d.entradas).replace('.', ','), String(d.saidas).replace('.', ','), String(d.saldo_dia).replace('.', ','), String(d.acumulado).replace('.', ',')])
-    )
+  const extratoExportData = (): { rows: ExtratoRowExport[]; empresaLabel: string; periodoLabel: string } => {
+    const empresaLabel = filters.empresas.length > 0 ? filters.empresas.join(', ') : 'Todas as Empresas'
+    const periodoLabel = filters.dtInicio && filters.dtFim
+      ? (() => { const [y1, m1, d1] = filters.dtInicio!.split('-'); const [y2, m2, d2] = filters.dtFim!.split('-'); return `${d1}/${m1}/${y1} a ${d2}/${m2}/${y2}` })()
+      : diasData.length > 0 ? `${diasData[0].data} a ${diasData[diasData.length - 1].data}` : ''
+    return {
+      rows: extratoData.map((r) => ({ ...r })),
+      empresaLabel,
+      periodoLabel,
+    }
+  }
+
+  const handleExtratoPDF = () => {
+    const { rows, empresaLabel, periodoLabel } = extratoExportData()
+    exportExtratoPDF(rows, empresaLabel, periodoLabel)
+  }
+  const handleExtratoXLSX = () => {
+    const { rows, empresaLabel, periodoLabel } = extratoExportData()
+    exportExtratoXLSX(rows, empresaLabel, periodoLabel)
   }
 
   const buildPivotExportData = () => {
@@ -558,14 +764,17 @@ export default function FluxoCaixa() {
           </CardContent>
         </Card>
 
-        {/* Table */}
+        {/* Extrato Bancário */}
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Saldo por Dia</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleExport} className="rounded-lg"><Download className="h-4 w-4 mr-2" />Exportar</Button>
+            <CardTitle className="text-sm font-medium">Extrato Bancário</CardTitle>
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={handleExtratoXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
+              <Button variant="outline" size="sm" onClick={handleExtratoPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <DataTable data={diasData} columns={columns as ColumnDef<DiaData, unknown>[]} searchPlaceholder="Buscar data..." />
+            <DataTable data={extratoData} columns={extratoCols as ColumnDef<ExtratoRow, unknown>[]} searchPlaceholder="Buscar descrição, obra, fornecedor..." pageSize={50} />
           </CardContent>
         </Card>
       </div>
