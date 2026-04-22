@@ -58,20 +58,24 @@ def _get_saldo_conta_col() -> str | None:
 
 
 def _get_valor_reaj_col() -> str | None:
-    """Descobre o nome da coluna de valor reajustado na tabela ContasReceber."""
+    """Descobre o nome da coluna de valor reajustado na tabela ContasReceber.
+
+    Busca apenas colunas NUMÉRICAS cujo nome indique valor reajustado,
+    priorizando 'Reaj' e 'Corrig'. Colunas de data ou status são ignoradas.
+    """
     with get_db() as conn:
         cur = conn.cursor(as_dict=True)
         cur.execute(
             """
             SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_NAME = 'ContasReceber'
-              AND (COLUMN_NAME LIKE '%Reaj%' OR COLUMN_NAME LIKE '%Corrig%'
-                   OR COLUMN_NAME LIKE '%Atual%' OR COLUMN_NAME LIKE '%Ajust%')
+              AND DATA_TYPE IN ('decimal', 'numeric', 'float', 'real', 'money', 'smallmoney', 'int', 'bigint', 'smallint', 'tinyint')
+              AND (COLUMN_NAME LIKE '%Valor%Reaj%' OR COLUMN_NAME LIKE '%Valor%Corrig%'
+                   OR COLUMN_NAME LIKE '%ValorReaj%' OR COLUMN_NAME LIKE '%ValorCorrig%')
             """,
         )
         cols = [r["COLUMN_NAME"] for r in cur.fetchall()]
-    priority = [c for c in cols if "reaj" in c.lower() or "corrig" in c.lower()]
-    return priority[0] if priority else (cols[0] if cols else None)
+    return cols[0] if cols else None
 
 
 def get_ap(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
@@ -155,9 +159,9 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
     if _VALOR_REAJ_COL is None:
         _VALOR_REAJ_COL = _get_valor_reaj_col() or ""
 
-    valor_expr = f"ISNULL(cr.{_VALOR_REAJ_COL}, cr.Valor_Prc)" if _VALOR_REAJ_COL else "cr.Valor_Prc"
+    valor_expr = f"CASE WHEN cr.Empresa_prc = 5 THEN ISNULL(cr.{_VALOR_REAJ_COL}, cr.Valor_Prc) ELSE cr.Valor_Prc END" if _VALOR_REAJ_COL else "cr.Valor_Prc"
 
-    sql = f"""
+    sql_template = """
     SELECT Empresa, Obra, Cliente, Tipo, Data, DataVenc, Valor, Status, Banco, Conta
     FROM (
         SELECT
@@ -172,7 +176,7 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
             cr.Tipo_Prc AS Tipo,
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS Data,
             CONVERT(VARCHAR(10), ISNULL(cr.DataPror_Prc, cr.Data_Prc), 103) AS DataVenc,
-            CASE WHEN cr.Empresa_prc = 5 THEN {valor_expr} ELSE cr.Valor_Prc END AS Valor,
+            {valor_expr} AS Valor,
             'A Receber' AS Status,
             ISNULL(CAST(pcb.NumeroBanco_pcb AS VARCHAR), ISNULL(CAST(cr.NumeroBanco_prc AS VARCHAR), '')) AS Banco,
             ISNULL(pcb.ContaBanco_pcb, ISNULL(cr.ContaBanco_prc, '')) AS Conta
@@ -246,10 +250,21 @@ def get_receitas(de: str = "2026-01-01", ate: str = "2026-06-30") -> list[dict]:
     ) t
     ORDER BY Data, Empresa, Obra
     """
-    with get_db() as conn:
-        cur = conn.cursor(as_dict=True)
-        cur.execute(sql, (de, ate, de, ate, de, ate))
-        rows = cur.fetchall()
+
+    # Try with reajuste column; if it fails, fall back to Valor_Prc only
+    try:
+        sql = sql_template.format(valor_expr=valor_expr)
+        with get_db() as conn:
+            cur = conn.cursor(as_dict=True)
+            cur.execute(sql, (de, ate, de, ate, de, ate))
+            rows = cur.fetchall()
+    except Exception:
+        _VALOR_REAJ_COL = ""
+        sql = sql_template.format(valor_expr="cr.Valor_Prc")
+        with get_db() as conn:
+            cur = conn.cursor(as_dict=True)
+            cur.execute(sql, (de, ate, de, ate, de, ate))
+            rows = cur.fetchall()
     result = [
         {
             "empresa": r["Empresa"] or "",
