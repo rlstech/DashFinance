@@ -258,7 +258,7 @@ export interface ExtratoRowExport {
 }
 
 export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string, periodoLabel: string): void {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   const marginX = 8
   let y = 12
@@ -287,14 +287,14 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
   ])
 
   const colStyles: Record<number, object> = {
-    0: { cellWidth: 18 },
-    1: { cellWidth: 18 },
-    2: { cellWidth: 50 },
-    3: { cellWidth: 18 },
-    4: { cellWidth: 20 },
-    5: { cellWidth: 28, halign: 'right' },
-    6: { cellWidth: 28, halign: 'right' },
-    7: { cellWidth: 28, halign: 'right' },
+    0: { cellWidth: 16 },
+    1: { cellWidth: 16 },
+    2: { cellWidth: 42 },
+    3: { cellWidth: 16 },
+    4: { cellWidth: 18 },
+    5: { cellWidth: 24, halign: 'right' },
+    6: { cellWidth: 24, halign: 'right' },
+    7: { cellWidth: 24, halign: 'right' },
   }
 
   autoTable(doc, {
