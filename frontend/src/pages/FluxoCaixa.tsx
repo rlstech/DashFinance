@@ -764,10 +764,10 @@ export default function FluxoCaixa() {
           </CardContent>
         </Card>
 
-        {/* Extrato Bancário */}
+        {/* Extrato de Movimentação Financeira */}
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Extrato Bancário</CardTitle>
+            <CardTitle className="text-sm font-medium">EXTRATO DE MOVIMENTAÇÃO FINANCEIRA</CardTitle>
             <div className="flex gap-1">
               <Button variant="outline" size="sm" onClick={handleExtratoXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
               <Button variant="outline" size="sm" onClick={handleExtratoPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>

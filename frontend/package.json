@@ -22,7 +22,7 @@
     "react-router-dom": "^6.30.3",
     "recharts": "^2.15.4",
     "tailwind-merge": "^2.6.1",
-    "xlsx": "^0.18.5",
+    "@e965/xlsx": "^0.20.3",
     "zustand": "^4.5.7"
   },
   "devDependencies": {

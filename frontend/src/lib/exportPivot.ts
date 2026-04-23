@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import * as XLSX from 'xlsx'
+import * as XLSX from '@e965/xlsx'
 import { formatCurrency } from './formatters'
 
 export interface DiaDataExport {
@@ -266,7 +266,7 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
   doc.setFontSize(11)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(30, 30, 30)
-  doc.text(`EXTRATO BANCÁRIO: ${empresaLabel}`, marginX, y)
+  doc.text(`EXTRATO DE MOVIMENTAÇÃO FINANCEIRA: ${empresaLabel}`, marginX, y)
   y += 6
 
   doc.setFontSize(9)
@@ -287,11 +287,11 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
   ])
 
   const colStyles: Record<number, object> = {
-    0: { cellWidth: 16 },
-    1: { cellWidth: 16 },
-    2: { cellWidth: 42 },
-    3: { cellWidth: 16 },
-    4: { cellWidth: 18 },
+    0: { cellWidth: 16, halign: 'left' },
+    1: { cellWidth: 16, halign: 'left' },
+    2: { cellWidth: 42, halign: 'left' },
+    3: { cellWidth: 16, halign: 'left' },
+    4: { cellWidth: 18, halign: 'left' },
     5: { cellWidth: 24, halign: 'right' },
     6: { cellWidth: 24, halign: 'right' },
     7: { cellWidth: 24, halign: 'right' },
@@ -346,14 +346,14 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
     },
   })
 
-  doc.save(`extrato_bancario_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
+  doc.save(`extrato_movimentacao_financeira_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
 }
 
 export function exportExtratoXLSX(rows: ExtratoRowExport[], empresaLabel: string, periodoLabel: string): void {
   const headers = ['Data', 'Tipo', 'Descrição', 'Obra', 'Empresa', 'Entrada', 'Saída', 'Saldo', 'Origem', 'Banco', 'Conta']
 
   const aoa: (string | number | null)[][] = [
-    [`EXTRATO BANCÁRIO: ${empresaLabel}`],
+    [`EXTRATO DE MOVIMENTAÇÃO FINANCEIRA: ${empresaLabel}`],
     [`PERÍODO: ${periodoLabel}`],
     [],
     headers,
@@ -388,7 +388,22 @@ export function exportExtratoXLSX(rows: ExtratoRowExport[], empresaLabel: string
     { wch: 14 },
   ]
 
+  // Alinhar à esquerda colunas Descrição (2), Obra (3) e Empresa (4)
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (const C of [2, 3, 4]) {
+      const cellRef = XLSX.utils.encode_cell({ r: R, c: C })
+      const cell = ws[cellRef]
+      if (cell) {
+        cell.s = {
+          ...(cell.s || {}),
+          alignment: { horizontal: 'left', vertical: 'center' },
+        }
+      }
+    }
+  }
+
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Extrato')
-  XLSX.writeFile(wb, `extrato_bancario_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
+  XLSX.utils.book_append_sheet(wb, ws, 'Extrato Movimentação Financeira')
+  XLSX.writeFile(wb, `extrato_movimentacao_financeira_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
 }
