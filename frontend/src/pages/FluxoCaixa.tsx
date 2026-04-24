@@ -398,6 +398,14 @@ export default function FluxoCaixa() {
     return result
   }, [apData, recData, saldoData, filters, empresaConfigs, diasData])
 
+  const extratoTotals = useMemo(() => {
+    return extratoData.reduce((acc, row) => {
+      if (row.tipo === 'Entrada') acc.entrada += row.entrada ?? 0
+      if (row.tipo === 'Saída') acc.saida += row.saida ?? 0
+      return acc
+    }, { entrada: 0, saida: 0 })
+  }, [extratoData])
+
   const kpis = useMemo(() => {
     const totalEntradas = diasData.reduce((s, d) => s + d.entradas, 0)
     const totalSaidas = diasData.reduce((s, d) => s + d.saidas, 0)
@@ -650,6 +658,33 @@ export default function FluxoCaixa() {
           </Card>
         </div>
 
+        {/* Extrato de Movimentação Financeira */}
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium">EXTRATO DE MOVIMENTAÇÃO FINANCEIRA</CardTitle>
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" onClick={handleExtratoXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
+              <Button variant="outline" size="sm" onClick={handleExtratoPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              data={extratoData}
+              columns={extratoCols as ColumnDef<ExtratoRow, unknown>[]}
+              searchPlaceholder="Buscar descrição, obra, fornecedor..."
+              pageSize={50}
+              footerRow={
+                <tr className="border-t-2 border-border bg-muted/50 font-semibold">
+                  <td colSpan={5} className="px-4 py-3 text-right text-muted-foreground">Total</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-emerald-400">{formatCurrency(extratoTotals.entrada)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-red-400">{formatCurrency(extratoTotals.saida)}</td>
+                  <td></td>
+                </tr>
+              }
+            />
+          </CardContent>
+        </Card>
+
         {/* Pivot table */}
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -761,20 +796,6 @@ export default function FluxoCaixa() {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Extrato de Movimentação Financeira */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">EXTRATO DE MOVIMENTAÇÃO FINANCEIRA</CardTitle>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={handleExtratoXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
-              <Button variant="outline" size="sm" onClick={handleExtratoPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <DataTable data={extratoData} columns={extratoCols as ColumnDef<ExtratoRow, unknown>[]} searchPlaceholder="Buscar descrição, obra, fornecedor..." pageSize={50} />
           </CardContent>
         </Card>
       </div>

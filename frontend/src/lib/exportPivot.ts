@@ -275,16 +275,21 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
   y += 8
 
   const headers = ['Data', 'Tipo', 'Descrição', 'Obra', 'Empresa', 'Entrada', 'Saída', 'Saldo']
-  const bodyRows = rows.map(r => [
-    r.data,
-    r.tipo,
-    r.descricao,
-    r.obra,
-    r.empresa,
-    r.entrada !== null ? fmt(r.entrada) : '',
-    r.saida !== null ? fmt(r.saida) : '',
-    fmt(r.saldo),
-  ])
+  const totalEntrada = rows.reduce((s, r) => s + (r.entrada ?? 0), 0)
+  const totalSaida = rows.reduce((s, r) => s + (r.saida ?? 0), 0)
+  const bodyRows = [
+    ...rows.map(r => [
+      r.data,
+      r.tipo,
+      r.descricao,
+      r.obra,
+      r.empresa,
+      r.entrada !== null ? fmt(r.entrada) : '',
+      r.saida !== null ? fmt(r.saida) : '',
+      fmt(r.saldo),
+    ]),
+    ['', '', '', '', 'Total', fmt(totalEntrada), fmt(totalSaida), ''],
+  ]
 
   const colStyles: Record<number, object> = {
     0: { cellWidth: 16, halign: 'left' },
@@ -317,7 +322,20 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
     columnStyles: colStyles,
     didParseCell: (hookData) => {
       if (hookData.section !== 'body') return
+      const isTotalRow = hookData.row.index === rows.length
       const row = rows[hookData.row.index]
+
+      if (isTotalRow) {
+        hookData.cell.styles.fillColor = COLOR_SALDO_BG
+        hookData.cell.styles.fontStyle = 'bold'
+        if (hookData.column.index === 5) {
+          hookData.cell.styles.textColor = [34, 197, 94]
+        } else if (hookData.column.index === 6) {
+          hookData.cell.styles.textColor = COLOR_NEG
+        }
+        return
+      }
+
       if (!row) return
 
       if (row.tipo === 'Saldo Inicial') {
@@ -351,6 +369,8 @@ export function exportExtratoPDF(rows: ExtratoRowExport[], empresaLabel: string,
 
 export function exportExtratoXLSX(rows: ExtratoRowExport[], empresaLabel: string, periodoLabel: string): void {
   const headers = ['Data', 'Tipo', 'Descrição', 'Obra', 'Empresa', 'Entrada', 'Saída', 'Saldo', 'Origem', 'Banco', 'Conta']
+  const totalEntrada = rows.reduce((s, r) => s + (r.entrada ?? 0), 0)
+  const totalSaida = rows.reduce((s, r) => s + (r.saida ?? 0), 0)
 
   const aoa: (string | number | null)[][] = [
     [`EXTRATO DE MOVIMENTAÇÃO FINANCEIRA: ${empresaLabel}`],
@@ -370,6 +390,7 @@ export function exportExtratoXLSX(rows: ExtratoRowExport[], empresaLabel: string
       r.banco,
       r.conta,
     ]),
+    ['', '', '', '', 'Total', totalEntrada, totalSaida, '', '', '', ''],
   ]
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)
