@@ -52,8 +52,8 @@ const columns = [
   }),
 ]
 
-export default function ContasAPagar() {
-  useEffect(() => { document.title = 'Contas a Pagar | DashFinance' }, [])
+export default function Despesas() {
+  useEffect(() => { document.title = 'Despesas | DashFinance' }, [])
   const { data: ALL_DATA, isLoading } = useAP()
   const { empresas, obras, dtInicio, dtFim, origens, bancos, contas } = useFilterStore()
 
@@ -145,7 +145,7 @@ export default function ContasAPagar() {
 
   function handleExportXLSX() {
     const aoa = [
-      ['CONTAS A PAGAR'],
+      ['DESPESAS'],
       [`Empresa: ${empresaLabel}`],
       [`Período: ${periodoLabel}`],
       [`Total: ${formatCurrency(kpis.total)} (${filteredData.length} registros)`],
@@ -156,8 +156,8 @@ export default function ContasAPagar() {
     const ws = XLSX.utils.aoa_to_sheet(aoa)
     ws['!cols'] = [{ wch: 35 }, { wch: 12 }, { wch: 40 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 18 }]
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Contas a Pagar')
-    XLSX.writeFile(wb, `contas_a_pagar_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
+    XLSX.utils.book_append_sheet(wb, ws, 'Despesas')
+    XLSX.writeFile(wb, `despesas_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`)
   }
 
   function handleExportPDF() {
@@ -167,7 +167,7 @@ export default function ContasAPagar() {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
-    doc.text('CONTAS A PAGAR', marginX, y)
+    doc.text('DESPESAS', marginX, y)
     y += 6
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
@@ -201,7 +201,7 @@ export default function ContasAPagar() {
         6: { cellWidth: 16, halign: 'center' }, 7: { cellWidth: 22, halign: 'right' },
       },
     })
-    doc.save(`contas_a_pagar_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
+    doc.save(`despesas_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
   }
 
   if (isLoading) {

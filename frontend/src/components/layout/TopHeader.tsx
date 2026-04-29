@@ -5,8 +5,8 @@ import { useFilterStore } from '@/hooks/useFilters'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { to: '/ap', label: 'Contas a Pagar' },
   { to: '/receitas', label: 'Receitas' },
+  { to: '/despesas', label: 'Despesas' },
   { to: '/fluxo', label: 'Fluxo de Caixa' },
   { to: '/config', label: 'Configurações' },
 ]
