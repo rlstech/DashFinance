@@ -31,10 +31,11 @@ export function DonutChart({ data, height = 250, centerLabel, centerValue }: Don
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: 'hsl(222 47% 11%)',
-                border: '1px solid hsl(217 33% 17%)',
-                borderRadius: 8,
+                backgroundColor: '#0F172A',
+                border: '2px solid #0F172A',
+                borderRadius: 0,
                 fontSize: 12,
+                color: '#F8FAFC',
               }}
               formatter={(value: number) => [formatCurrency(value)]}
             />
@@ -42,19 +43,19 @@ export function DonutChart({ data, height = 250, centerLabel, centerValue }: Don
         </ResponsiveContainer>
         {centerLabel && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-xs text-muted-foreground">{centerLabel}</span>
-            <span className="text-lg font-semibold">{centerValue ?? formatCompact(total)}</span>
+            <span className="text-xs text-muted-foreground font-bold uppercase">{centerLabel}</span>
+            <span className="text-lg font-black text-dark">{centerValue ?? formatCompact(total)}</span>
           </div>
         )}
       </div>
-      <div className="space-y-1 mt-2">
+      <div className="space-y-1.5 mt-3">
         {data.map((d, i) => (
           <div key={i} className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: d.color }} />
-              <span className="text-muted-foreground">{d.name}</span>
+              <div className="h-2.5 w-2.5" style={{ backgroundColor: d.color }} />
+              <span className="text-muted-foreground font-medium truncate max-w-[120px]">{d.name}</span>
             </div>
-            <span className="font-medium">{formatCompact(d.value)}</span>
+            <span className="font-black tabular-nums">{formatCompact(d.value)}</span>
           </div>
         ))}
       </div>

@@ -1,15 +1,14 @@
 import { NavLink } from 'react-router-dom'
-import { Receipt, Wallet, TrendingUp, Settings, LayoutDashboard, RefreshCw, Menu } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { RefreshCw, Menu } from 'lucide-react'
 import { useSync, useStatus } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { to: '/ap', icon: Wallet, label: 'Contas a Pagar' },
-  { to: '/receitas', icon: Receipt, label: 'Receitas' },
-  { to: '/fluxo', icon: TrendingUp, label: 'Fluxo de Caixa' },
-  { to: '/config', icon: Settings, label: 'Configurações' },
+  { to: '/ap', label: 'Contas a Pagar' },
+  { to: '/receitas', label: 'Receitas' },
+  { to: '/fluxo', label: 'Fluxo de Caixa' },
+  { to: '/config', label: 'Configurações' },
 ]
 
 export function TopHeader() {
@@ -18,55 +17,54 @@ export function TopHeader() {
   const toggleSidebar = useFilterStore((s) => s.toggleSidebar)
 
   return (
-    <header className="flex items-center border-b bg-card h-14 w-full">
-      {/* Logo Area */}
-      <div className="flex items-center lg:w-[280px] lg:min-w-[280px] pl-3 lg:pl-6 pr-4 lg:border-r h-full gap-2">
-        <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" onClick={toggleSidebar}>
-          <Menu className="h-5 w-5" />
-        </Button>
-        <LayoutDashboard className="h-5 w-5 text-primary" />
-        <span className="font-bold text-lg hidden sm:inline-block">DashFinance</span>
-      </div>
+    <header className="px-6 pt-4 pb-0 block-border-b bg-white flex flex-col md:flex-row justify-between items-start md:items-end sticky top-0 z-30 gap-2 md:gap-0">
+      <div className="flex items-end gap-10">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            className="md:hidden p-1 border-2 border-dark text-dark hover:bg-brand hover:text-white transition-colors"
+            onClick={toggleSidebar}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <h1 className="text-2xl font-black tracking-tighter text-dark uppercase">
+            Dashfinance<span className="text-brand">_</span>
+          </h1>
+        </div>
 
-      {/* Main Header Area */}
-      <div className="flex-1 flex items-center justify-between px-2 sm:px-6 h-full">
-        <nav className="flex items-center gap-0.5 sm:gap-1.5 h-full">
+        <nav className="hidden md:flex gap-6 text-xs">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-2 px-2 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                  'font-black uppercase tracking-widest pb-3 transition-colors border-b-4',
                   isActive
-                    ? 'bg-primary/15 text-primary shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    ? 'text-dark border-brand'
+                    : 'text-muted-foreground border-transparent hover:text-dark'
                 )
               }
             >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span className="hidden md:inline">{item.label}</span>
+              {item.label}
             </NavLink>
           ))}
         </nav>
+      </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          {status?.last_sync && (
-            <span className="text-xs text-muted-foreground hidden lg:inline-block">
-              Atualizado {status.last_sync}
-            </span>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-lg shadow-sm"
-            onClick={() => sync.mutate()}
-            disabled={sync.isPending}
-          >
-            <RefreshCw className={cn('h-4 w-4 sm:mr-2', sync.isPending && 'animate-spin')} />
-            <span className="hidden sm:inline">Sincronizar</span>
-          </Button>
-        </div>
+      <div className="flex items-center gap-4 mb-3">
+        {status?.last_sync && (
+          <span className="text-xs text-muted-foreground hidden lg:inline-block font-medium">
+            Atualizado {status.last_sync}
+          </span>
+        )}
+        <button
+          onClick={() => sync.mutate()}
+          disabled={sync.isPending}
+          className="bg-dark text-white text-xs font-black uppercase tracking-widest px-4 py-2 hover:bg-brand hover:text-dark transition-colors disabled:opacity-50 flex items-center gap-2"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5', sync.isPending && 'animate-spin')} />
+          <span className="hidden sm:inline">Sincronizar</span>
+        </button>
       </div>
     </header>
   )

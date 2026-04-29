@@ -8,10 +8,7 @@ import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { TimelineChart } from '@/components/charts/TimelineChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { DataTable } from '@/components/tables/DataTable'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
 import { useAP } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
 import { formatCurrency, formatCompact, parseDate } from '@/lib/formatters'
@@ -41,15 +38,14 @@ const columns = [
     header: 'Origem',
     cell: (info) => {
       const origem = info.getValue()
-      const variant =
-        origem === 'Emissao' ? 'default' : origem === 'Pago' ? 'success' : 'outline'
+      const variant = origem === 'Emissao' ? 'default' : origem === 'Pago' ? 'success' : 'warning'
       return <Badge variant={variant}>{origem}</Badge>
     },
   }),
   columnHelper.accessor('valor', {
     header: 'Valor',
     cell: (info) => (
-      <span className="text-right block font-medium tabular-nums">
+      <span className="text-right block font-black tabular-nums">
         {formatCurrency(info.getValue())}
       </span>
     ),
@@ -63,39 +59,29 @@ export default function ContasAPagar() {
 
   const filteredData = useMemo(() => {
     if (!ALL_DATA) return []
-
     const inicio = dtInicio ? new Date(dtInicio + 'T00:00:00') : null
     const fim = dtFim ? new Date(dtFim + 'T23:59:59') : null
-
     return ALL_DATA.filter((r) => {
       if (empresas.length > 0 && !empresas.includes(r.empresa)) return false
       if (obras.length > 0 && !obras.includes(r.obra)) return false
       if (origens.length > 0 && !origens.includes(r.origem)) return false
       if (bancos.length > 0 && !bancos.includes(r.banco)) return false
       if (contas.length > 0 && !contas.includes(r.conta)) return false
-
       if (inicio || fim) {
         const d = parseDate(r.data)
         if (!d) return false
         if (inicio && d < inicio) return false
         if (fim && d > fim) return false
       }
-
       return true
     })
   }, [ALL_DATA, empresas, obras, dtInicio, dtFim, origens, bancos, contas])
 
   const kpis = useMemo(() => {
     const total = filteredData.reduce((s, r) => s + r.valor, 0)
-    const emissao = filteredData
-      .filter((r) => r.origem === 'Emissao')
-      .reduce((s, r) => s + r.valor, 0)
-    const aConfirmar = filteredData
-      .filter((r) => r.origem === 'A Confirmar')
-      .reduce((s, r) => s + r.valor, 0)
-    const pago = filteredData
-      .filter((r) => r.origem === 'Pago')
-      .reduce((s, r) => s + r.valor, 0)
+    const emissao = filteredData.filter((r) => r.origem === 'Emissao').reduce((s, r) => s + r.valor, 0)
+    const aConfirmar = filteredData.filter((r) => r.origem === 'A Confirmar').reduce((s, r) => s + r.valor, 0)
+    const pago = filteredData.filter((r) => r.origem === 'Pago').reduce((s, r) => s + r.valor, 0)
     return { total, emissao, aConfirmar, pago }
   }, [filteredData])
 
@@ -132,33 +118,24 @@ export default function ContasAPagar() {
     const byCat: Record<string, number> = {}
     const byFornecedor: Record<string, number> = {}
     let total = 0
-
     const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
-    
     const formatTopN = (arr: [string, number][], n = 6) => {
       let result = arr.slice(0, n)
       const others = arr.slice(n).reduce((acc, curr) => acc + curr[1], 0)
       if (others > 0) result.push(['Outros', others])
-      return result.map(([name, value], i) => ({
-        name: name || 'N/A',
-        value,
-        color: CHART_COLORS[i % CHART_COLORS.length]
-      }))
+      return result.map(([name, value], i) => ({ name: name || 'N/A', value, color: CHART_COLORS[i % CHART_COLORS.length] }))
     }
-
     filteredData.forEach((r) => {
       byCat[r.categoria || 'N/A'] = (byCat[r.categoria || 'N/A'] || 0) + r.valor
       byFornecedor[r.fornecedor || 'N/A'] = (byFornecedor[r.fornecedor || 'N/A'] || 0) + r.valor
       total += r.valor
     })
-
     return {
-      categoriasData: formatTopN(Object.entries(byCat).sort((a,b) => b[1] - a[1]), 5),
-      fornecedoresData: formatTopN(Object.entries(byFornecedor).sort((a,b) => b[1] - a[1]), 6),
-      totalValor: total
+      categoriasData: formatTopN(Object.entries(byCat).sort((a, b) => b[1] - a[1]), 5),
+      fornecedoresData: formatTopN(Object.entries(byFornecedor).sort((a, b) => b[1] - a[1]), 6),
+      totalValor: total,
     }
   }, [filteredData])
-
 
   const empresaLabel = empresas.length > 0 ? empresas.join(', ') : 'Todas as Empresas'
   const periodoLabel = dtInicio && dtFim
@@ -186,13 +163,11 @@ export default function ContasAPagar() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const marginX = 10
     let y = 12
-
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
     doc.text('CONTAS A PAGAR', marginX, y)
     y += 6
-
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.text(`Empresa: ${empresaLabel}`, marginX, y)
@@ -202,14 +177,11 @@ export default function ContasAPagar() {
     doc.setFont('helvetica', 'bold')
     doc.text(`Total: ${formatCurrency(kpis.total)} (${filteredData.length} registros)`, marginX, y)
     y += 8
-
     const cols = ['Obra', 'Data', 'Fornecedor', 'Banco', 'Conta', 'Categoria', 'Origem', 'Valor']
     const rows = filteredData.map((r) => [
       r.obra, r.data, r.fornecedor, r.banco, r.conta, r.categoria, r.origem,
       formatCurrency(r.valor),
     ])
-
-    // col widths must sum to exactly 190mm: 33+16+46+20+17+20+16+22 = 190
     autoTable(doc, {
       startY: y,
       head: [cols],
@@ -223,17 +195,11 @@ export default function ContasAPagar() {
       headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       footStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       columnStyles: {
-        0: { cellWidth: 33 },
-        1: { cellWidth: 16, halign: 'center' },
-        2: { cellWidth: 46 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 17 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 16, halign: 'center' },
-        7: { cellWidth: 22, halign: 'right' },
+        0: { cellWidth: 33 }, 1: { cellWidth: 16, halign: 'center' }, 2: { cellWidth: 46 },
+        3: { cellWidth: 20 }, 4: { cellWidth: 17 }, 5: { cellWidth: 20 },
+        6: { cellWidth: 16, halign: 'center' }, 7: { cellWidth: 22, halign: 'right' },
       },
     })
-
     doc.save(`contas_a_pagar_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
   }
 
@@ -241,13 +207,13 @@ export default function ContasAPagar() {
     return (
       <div className="flex h-full">
         <FilterSidebar showOrigem />
-        <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 flex-1 overflow-auto">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <div className="grid grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-xl" />
-            ))}
+        <div className="p-8 overflow-auto flex-1 space-y-8">
+          <div className="h-44 bg-white block-border animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8 h-80 bg-white block-border animate-pulse" />
+            <div className="lg:col-span-4 h-80 bg-white block-border animate-pulse" />
           </div>
+          <div className="h-64 bg-white block-border animate-pulse" />
         </div>
       </div>
     )
@@ -257,178 +223,136 @@ export default function ContasAPagar() {
     <div className="flex h-full">
       <FilterSidebar showOrigem />
 
-      <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 overflow-auto flex-1">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Total do Período
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCompact(kpis.total)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {filteredData.length} registros
-              </p>
-            </CardContent>
-          </Card>
+      <div className="p-8 overflow-auto flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Emissão
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#2d6a4f]">
-                {formatCompact(kpis.emissao)}
+          {/* Hero KPI */}
+          <div className="lg:col-span-12 relative p-8 block-border shadow-hard bg-white flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+            <div className="absolute top-0 left-0 bg-brand text-dark text-xs font-black uppercase px-3 py-1 tracking-widest">
+              Despesas Consolidadas
+            </div>
+            <div className="mt-4">
+              <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">
+                Total do Período <span className="text-brand ml-2">{filteredData.length} Reg.</span>
+              </p>
+              <h2 className="hero-metric text-dark mt-2">{formatCompact(kpis.total)}</h2>
+            </div>
+            <div className="flex flex-wrap md:flex-nowrap gap-4 w-full xl:w-auto">
+              <div className="bg-bgBase p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-gray-500 uppercase">Emissão</p>
+                <p className="text-2xl font-black mt-1">{formatCompact(kpis.emissao)}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {kpis.total > 0 ? ((kpis.emissao / kpis.total) * 100).toFixed(1) : '0.0'}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                A Confirmar
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#52b788]">
-                {formatCompact(kpis.aConfirmar)}
+              <div className="bg-bgBase p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-gray-500 uppercase">A Confirmar</p>
+                <p className="text-2xl font-black mt-1">{formatCompact(kpis.aConfirmar)}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {kpis.total > 0 ? ((kpis.aConfirmar / kpis.total) * 100).toFixed(1) : '0.0'}%
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Pago
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-emerald-400">
-                {formatCompact(kpis.pago)}
+              <div className="bg-dark text-white p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-brand uppercase">Pago</p>
+                <p className="text-2xl font-black mt-1 text-brand">{formatCompact(kpis.pago)}</p>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {kpis.total > 0 ? ((kpis.pago / kpis.total) * 100).toFixed(1) : '0.0'}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 rounded-xl shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium">
-                {chartMode === 'daily' ? 'Evolução Diária' : 'Evolução Mensal'}
-              </CardTitle>
-              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+          {/* Chart: Timeline */}
+          <div className="lg:col-span-8 bg-white block-border p-8 shadow-hard flex flex-col">
+            <div className="flex justify-between items-end mb-8">
+              <h3 className="text-lg font-black uppercase">
+                Evolução {chartMode === 'daily' ? 'Diária' : 'Mensal'}
+              </h3>
+              <div className="flex gap-2">
                 <button
                   onClick={() => setChartMode('daily')}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${
                     chartMode === 'daily'
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-dark text-white'
+                      : 'border-2 border-dark text-dark hover:bg-bgBase'
                   }`}
                 >
                   Diário
                 </button>
                 <button
                   onClick={() => setChartMode('monthly')}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${
                     chartMode === 'monthly'
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-dark text-white'
+                      : 'border-2 border-dark text-dark hover:bg-bgBase'
                   }`}
                 >
                   Mensal
                 </button>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="flex-1">
               <TimelineChart
                 data={timelineData}
                 bars={[
-                  { key: 'emissao', color: '#2d6a4f', name: 'Emissão' },
-                  { key: 'a_confirmar', color: '#52b788', name: 'A Confirmar' },
+                  { key: 'emissao', color: '#CBD5E1', name: 'Emissão' },
+                  { key: 'a_confirmar', color: '#0F172A', name: 'A Confirmar' },
                 ]}
                 height={320}
               />
-            </CardContent>
-          </Card>
-
-          <div className="space-y-6">
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Por Categoria</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DonutChart
-                  data={categoriasData}
-                  centerLabel="Total"
-                  centerValue={formatCompact(totalValor)}
-                  height={160}
-                />
-              </CardContent>
-            </Card>
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium">Por Fornecedor (Top 6)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DonutChart
-                  data={fornecedoresData}
-                  centerLabel="Total"
-                  centerValue={formatCompact(totalValor)}
-                  height={160}
-                />
-              </CardContent>
-            </Card>
+            </div>
           </div>
 
-        </div>
-
-        {/* Table */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Detalhamento</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportXLSX} className="rounded-lg">
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                XLSX
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExportPDF} className="rounded-lg">
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
+          {/* Charts: Right column */}
+          <div className="lg:col-span-4 flex flex-col gap-8">
+            <div className="bg-white block-border p-6 shadow-hard flex-1">
+              <h3 className="text-sm font-black uppercase mb-4">Por Categoria</h3>
+              <DonutChart
+                data={categoriasData}
+                centerLabel="Total"
+                centerValue={formatCompact(totalValor)}
+                height={160}
+              />
             </div>
-          </CardHeader>
-          <CardContent>
+            <div className="bg-white block-border p-6 shadow-hard flex-1">
+              <h3 className="text-sm font-black uppercase mb-4">Top Fornecedores</h3>
+              <DonutChart
+                data={fornecedoresData}
+                centerLabel="Total"
+                centerValue={formatCompact(totalValor)}
+                height={160}
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="lg:col-span-12 bg-white block-border p-8 shadow-hard">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+              <h3 className="text-lg font-black uppercase">Detalhamento</h3>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleExportXLSX}
+                  className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />XLSX
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors"
+                >
+                  <FileText className="h-4 w-4" />PDF
+                </button>
+              </div>
+            </div>
             <DataTable
               data={filteredData}
               columns={columns as ColumnDef<APRecord, unknown>[]}
               searchPlaceholder="Buscar fornecedor, empresa..."
               footerRow={
                 <tr>
-                  <td colSpan={6} className="px-4 py-2 text-sm font-semibold text-right text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-3 text-xs font-black text-right text-gray-500 uppercase">
                     Total do Período
                   </td>
-                  <td className="px-4 py-2 text-sm font-bold text-right tabular-nums">
+                  <td className="px-4 py-3 text-sm font-black text-right tabular-nums">
                     {formatCurrency(kpis.total)}
                   </td>
                 </tr>
               }
             />
-          </CardContent>
-        </Card>
+          </div>
+
+        </div>
       </div>
     </div>
   )

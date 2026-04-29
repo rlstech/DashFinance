@@ -5,6 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: '#F97316',
+        dark: '#0F172A',
+        surface: '#FFFFFF',
+        bgBase: '#F1F5F9',
+        grid: '#CBD5E1',
+        positive: '#10B981',
+        negative: '#EF4444',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

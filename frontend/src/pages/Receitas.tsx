@@ -8,10 +8,7 @@ import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { TimelineChart } from '@/components/charts/TimelineChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { DataTable } from '@/components/tables/DataTable'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
 import { useReceitas } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
 import { formatCurrency, formatCompact, parseDate } from '@/lib/formatters'
@@ -26,7 +23,14 @@ const columns = [
     cell: (info) => {
       const emp = info.getValue()
       const color = EMPRESA_COLORS[emp] ?? '#6b7280'
-      return <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium text-white" style={{ backgroundColor: color }}>{emp.slice(0, 3).toUpperCase()}</span>
+      return (
+        <span
+          className="inline-flex px-2 py-0.5 text-xs font-black uppercase text-white"
+          style={{ backgroundColor: color }}
+        >
+          {emp.slice(0, 3).toUpperCase()}
+        </span>
+      )
     },
   }),
   col.accessor('obra', { header: 'Obra' }),
@@ -45,7 +49,9 @@ const columns = [
   }),
   col.accessor('valor', {
     header: 'Valor',
-    cell: (info) => <span className="font-medium tabular-nums block text-right">{formatCurrency(info.getValue())}</span>,
+    cell: (info) => (
+      <span className="font-black tabular-nums block text-right">{formatCurrency(info.getValue())}</span>
+    ),
   }),
 ]
 
@@ -58,7 +64,6 @@ export default function Receitas() {
     if (!allData) return []
     const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
     const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
-    
     return allData.filter((r) => {
       if (d1 || d2) {
         const rd = parseDate(r.data)
@@ -66,11 +71,9 @@ export default function Receitas() {
         if (d1 && rd < d1) return false
         if (d2 && rd > d2) return false
       }
-      
       if (filters.empresas.length > 0 && !filters.empresas.includes(r.empresa)) return false
       if (filters.obras.length > 0 && !filters.obras.includes(r.obra)) return false
       if (filters.status_list.length > 0 && !filters.status_list.includes(r.status)) return false
-      
       if (filters.bancos.length > 0) {
         if (r.banco && !filters.bancos.includes(r.banco)) return false
       }
@@ -126,33 +129,24 @@ export default function Receitas() {
     const byObra: Record<string, number> = {}
     const byCliente: Record<string, number> = {}
     let total = 0
-
     const CHART_COLORS = ['#2ea043', '#1f6feb', '#d29922', '#8957e5', '#f85149', '#373e47', '#005cc5', '#e36209']
-    
     const formatTopN = (arr: [string, number][], n = 5) => {
       let result = arr.slice(0, n)
       const others = arr.slice(n).reduce((acc, curr) => acc + curr[1], 0)
       if (others > 0) result.push(['Outros', others])
-      return result.map(([name, value], i) => ({
-        name: name || 'N/A',
-        value,
-        color: CHART_COLORS[i % CHART_COLORS.length]
-      }))
+      return result.map(([name, value], i) => ({ name: name || 'N/A', value, color: CHART_COLORS[i % CHART_COLORS.length] }))
     }
-
     filtered.forEach((r) => {
       byObra[r.obra || 'N/A'] = (byObra[r.obra || 'N/A'] || 0) + r.valor
       byCliente[r.cliente || 'N/A'] = (byCliente[r.cliente || 'N/A'] || 0) + r.valor
       total += r.valor
     })
-
     return {
-      obrasData: formatTopN(Object.entries(byObra).sort((a,b) => b[1] - a[1]), 5),
-      clientesData: formatTopN(Object.entries(byCliente).sort((a,b) => b[1] - a[1]), 6),
-      totalRecebido: total
+      obrasData: formatTopN(Object.entries(byObra).sort((a, b) => b[1] - a[1]), 5),
+      clientesData: formatTopN(Object.entries(byCliente).sort((a, b) => b[1] - a[1]), 6),
+      totalRecebido: total,
     }
   }, [filtered])
-
 
   const empresaLabel = filters.empresas.length > 0 ? filters.empresas.join(', ') : 'Todas as Empresas'
   const periodoLabel = filters.dtInicio && filters.dtFim
@@ -180,13 +174,11 @@ export default function Receitas() {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
     const marginX = 10
     let y = 12
-
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 30, 30)
     doc.text('RECEITAS', marginX, y)
     y += 6
-
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.text(`Empresa: ${empresaLabel}`, marginX, y)
@@ -196,14 +188,11 @@ export default function Receitas() {
     doc.setFont('helvetica', 'bold')
     doc.text(`Total: ${formatCurrency(kpis.total)} (${filtered.length} registros)`, marginX, y)
     y += 8
-
     const cols = ['Obra', 'Cliente', 'Tipo', 'Data', 'Data Venc.', 'Status', 'Valor']
     const rows = filtered.map((r) => [
       r.obra, r.cliente, TIPO_LABEL[r.tipo] || r.tipo, r.data, r.data_venc, r.status,
       formatCurrency(r.valor),
     ])
-
-    // col widths must sum to exactly 190mm: 38+58+22+18+18+16+20 = 190
     autoTable(doc, {
       startY: y,
       head: [cols],
@@ -217,16 +206,11 @@ export default function Receitas() {
       headStyles: { fillColor: [64, 64, 64], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       footStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       columnStyles: {
-        0: { cellWidth: 38 },
-        1: { cellWidth: 58 },
-        2: { cellWidth: 22 },
-        3: { cellWidth: 18, halign: 'center' },
-        4: { cellWidth: 18, halign: 'center' },
-        5: { cellWidth: 16, halign: 'center' },
-        6: { cellWidth: 20, halign: 'right' },
+        0: { cellWidth: 38 }, 1: { cellWidth: 58 }, 2: { cellWidth: 22 },
+        3: { cellWidth: 18, halign: 'center' }, 4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 16, halign: 'center' }, 6: { cellWidth: 20, halign: 'right' },
       },
     })
-
     doc.save(`receitas_${empresaLabel.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`)
   }
 
@@ -234,10 +218,13 @@ export default function Receitas() {
     return (
       <div className="flex h-full">
         <FilterSidebar showStatus />
-        <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 flex-1 overflow-auto">
-          <Skeleton className="h-14 w-full rounded-xl" />
-          <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
-          <Skeleton className="h-80 rounded-xl" />
+        <div className="p-8 overflow-auto flex-1 space-y-8">
+          <div className="h-44 bg-white block-border animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8 h-80 bg-white block-border animate-pulse" />
+            <div className="lg:col-span-4 h-80 bg-white block-border animate-pulse" />
+          </div>
+          <div className="h-64 bg-white block-border animate-pulse" />
         </div>
       </div>
     )
@@ -246,124 +233,155 @@ export default function Receitas() {
   return (
     <div className="flex h-full">
       <FilterSidebar showStatus />
-      
-      <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 overflow-auto flex-1">
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total do Período</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{formatCompact(kpis.total)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Recebido</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-emerald-400">{formatCompact(kpis.recebido)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">A Receber</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-amber-400">{formatCompact(kpis.aReceber)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Em Atraso</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-red-500">{formatCompact(kpis.emAtraso)}</div></CardContent></Card>
-        </div>
 
-        {/* Taxa de Recebimento */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Taxa de Recebimento</CardTitle></CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${kpis.taxa}%` }} />
-              </div>
-              <span className="text-sm font-medium">{kpis.taxa.toFixed(1)}%</span>
+      <div className="p-8 overflow-auto flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+          {/* Hero KPI */}
+          <div className="lg:col-span-12 relative p-8 block-border shadow-hard bg-white flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+            <div className="absolute top-0 left-0 bg-brand text-dark text-xs font-black uppercase px-3 py-1 tracking-widest">
+              Receitas Consolidadas
             </div>
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+            <div className="mt-4">
+              <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">
+                Total do Período <span className="text-brand ml-2">{filtered.length} Reg.</span>
+              </p>
+              <h2 className="hero-metric text-dark mt-2">{formatCompact(kpis.total)}</h2>
+            </div>
+            <div className="flex flex-wrap md:flex-nowrap gap-4 w-full xl:w-auto">
+              <div className="bg-bgBase p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-gray-500 uppercase">A Receber</p>
+                <p className="text-2xl font-black mt-1">{formatCompact(kpis.aReceber)}</p>
+              </div>
+              <div className="bg-bgBase p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-red-600 uppercase">Em Atraso</p>
+                <p className="text-2xl font-black mt-1 text-red-600">{formatCompact(kpis.emAtraso)}</p>
+              </div>
+              <div className="bg-dark text-white p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-brand uppercase">Recebido</p>
+                <p className="text-2xl font-black mt-1 text-brand">{formatCompact(kpis.recebido)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Taxa de Recebimento */}
+          <div className="lg:col-span-12 bg-white block-border p-6 shadow-hard">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-black uppercase">Taxa de Recebimento</h3>
+              <span className="text-2xl font-black">{kpis.taxa.toFixed(1)}%</span>
+            </div>
+            <div className="h-3 bg-bgBase block-border overflow-hidden">
+              <div
+                className="h-full bg-emerald-600 transition-all"
+                style={{ width: `${kpis.taxa}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs font-bold text-muted-foreground mt-2 uppercase">
               <span>Recebido: {formatCompact(kpis.recebido)}</span>
               <span>A Receber: {formatCompact(kpis.aReceber)}</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 rounded-xl shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium">
-                {chartMode === 'daily' ? 'Timeline Diário de Recebimentos' : 'Timeline Mensal de Recebimentos'}
-              </CardTitle>
-              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+          {/* Chart: Timeline */}
+          <div className="lg:col-span-8 bg-white block-border p-8 shadow-hard flex flex-col">
+            <div className="flex justify-between items-end mb-8">
+              <h3 className="text-lg font-black uppercase">
+                {chartMode === 'daily' ? 'Timeline Diário' : 'Timeline Mensal'} de Recebimentos
+              </h3>
+              <div className="flex gap-2">
                 <button
                   onClick={() => setChartMode('daily')}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${
                     chartMode === 'daily'
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-dark text-white'
+                      : 'border-2 border-dark text-dark hover:bg-bgBase'
                   }`}
                 >
                   Diário
                 </button>
                 <button
                   onClick={() => setChartMode('monthly')}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${
                     chartMode === 'monthly'
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-dark text-white'
+                      : 'border-2 border-dark text-dark hover:bg-bgBase'
                   }`}
                 >
                   Mensal
                 </button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <TimelineChart data={chartData} bars={[
-                { key: 'recebida', color: '#065f46', name: 'Recebida' },
-                { key: 'a_receber', color: '#f59e0b', name: 'A Receber' },
-              ]} height={320} />
-            </CardContent>
-          </Card>
-          <div className="space-y-6">
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader><CardTitle className="text-sm font-medium">Por Obra</CardTitle></CardHeader>
-              <CardContent>
-                <DonutChart data={obrasData} centerLabel="Total" centerValue={formatCompact(totalRecebido)} height={160} />
-              </CardContent>
-            </Card>
-            <Card className="rounded-xl shadow-sm">
-              <CardHeader><CardTitle className="text-sm font-medium">Por Cliente (Top 6)</CardTitle></CardHeader>
-              <CardContent>
-                <DonutChart data={clientesData} centerLabel="Total" centerValue={formatCompact(totalRecebido)} height={160} />
-              </CardContent>
-            </Card>
+            </div>
+            <div className="flex-1">
+              <TimelineChart
+                data={chartData}
+                bars={[
+                  { key: 'recebida', color: '#065f46', name: 'Recebida' },
+                  { key: 'a_receber', color: '#f59e0b', name: 'A Receber' },
+                ]}
+                height={320}
+              />
+            </div>
           </div>
 
-        </div>
-
-        {/* Table */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Detalhamento</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportXLSX} className="rounded-lg">
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                XLSX
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExportPDF} className="rounded-lg">
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
+          {/* Charts: Right column */}
+          <div className="lg:col-span-4 flex flex-col gap-8">
+            <div className="bg-white block-border p-6 shadow-hard flex-1">
+              <h3 className="text-sm font-black uppercase mb-4">Por Obra</h3>
+              <DonutChart
+                data={obrasData}
+                centerLabel="Total"
+                centerValue={formatCompact(totalRecebido)}
+                height={160}
+              />
             </div>
-          </CardHeader>
-          <CardContent>
+            <div className="bg-white block-border p-6 shadow-hard flex-1">
+              <h3 className="text-sm font-black uppercase mb-4">Por Cliente (Top 6)</h3>
+              <DonutChart
+                data={clientesData}
+                centerLabel="Total"
+                centerValue={formatCompact(totalRecebido)}
+                height={160}
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="lg:col-span-12 bg-white block-border p-8 shadow-hard">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+              <h3 className="text-lg font-black uppercase">Detalhamento</h3>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleExportXLSX}
+                  className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />XLSX
+                </button>
+                <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors"
+                >
+                  <FileText className="h-4 w-4" />PDF
+                </button>
+              </div>
+            </div>
             <DataTable
               data={filtered}
               columns={columns as ColumnDef<ReceitaRecord, unknown>[]}
               searchPlaceholder="Buscar cliente, obra..."
               footerRow={
                 <tr>
-                  <td colSpan={6} className="px-4 py-2 text-sm font-semibold text-right text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-3 text-xs font-black text-right text-gray-500 uppercase">
                     Total do Período
                   </td>
-                  <td className="px-4 py-2 text-sm font-bold text-right tabular-nums">
+                  <td className="px-4 py-3 text-sm font-black text-right tabular-nums">
                     {formatCurrency(kpis.total)}
                   </td>
                 </tr>
               }
             />
-          </CardContent>
-        </Card>
+          </div>
+
+        </div>
       </div>
     </div>
   )

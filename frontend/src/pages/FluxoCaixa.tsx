@@ -6,9 +6,6 @@ import { FilterSidebar } from '@/components/filters/FilterSidebar'
 import { CashFlowChart } from '@/components/charts/CashFlowChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { DataTable } from '@/components/tables/DataTable'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
 import { useAP, useReceitas, useSaldoBanco } from '@/hooks/useFinanceiro'
 import { useFilterStore } from '@/hooks/useFilters'
 import { useEmpresaConfig } from '@/hooks/useEmpresaConfig'
@@ -48,7 +45,7 @@ const extratoCols = [
     cell: (info) => {
       const v = info.getValue()
       return info.row.original.tipo === 'Saldo Inicial'
-        ? <span className="font-semibold">{v}</span>
+        ? <span className="font-black">{v}</span>
         : v
     },
   }),
@@ -56,8 +53,8 @@ const extratoCols = [
     header: 'Tipo',
     cell: (info) => {
       const v = info.getValue()
-      const cls = v === 'Entrada' ? 'text-emerald-400' : v === 'Saída' ? 'text-red-400' : 'text-muted-foreground'
-      return <span className={`${cls} font-medium text-xs`}>{v}</span>
+      const cls = v === 'Entrada' ? 'text-emerald-700' : v === 'Saída' ? 'text-red-700' : 'text-muted-foreground'
+      return <span className={`${cls} font-black text-xs uppercase`}>{v}</span>
     },
   }),
   extratoCol.accessor('descricao', {
@@ -65,7 +62,7 @@ const extratoCols = [
     cell: (info) => {
       const v = info.getValue()
       return info.row.original.tipo === 'Saldo Inicial'
-        ? <span className="font-semibold">{v}</span>
+        ? <span className="font-black">{v}</span>
         : v
     },
   }),
@@ -76,7 +73,7 @@ const extratoCols = [
     cell: (info) => {
       const v = info.getValue()
       return v !== null
-        ? <span className="font-medium tabular-nums block text-right text-emerald-400">{formatCurrency(v)}</span>
+        ? <span className="font-black tabular-nums block text-right text-emerald-700">{formatCurrency(v)}</span>
         : <span className="text-muted-foreground/40">—</span>
     },
   }),
@@ -85,7 +82,7 @@ const extratoCols = [
     cell: (info) => {
       const v = info.getValue()
       return v !== null
-        ? <span className="font-medium tabular-nums block text-right text-red-400">{formatCurrency(v)}</span>
+        ? <span className="font-black tabular-nums block text-right text-red-700">{formatCurrency(v)}</span>
         : <span className="text-muted-foreground/40">—</span>
     },
   }),
@@ -94,8 +91,8 @@ const extratoCols = [
     cell: (info) => {
       const v = info.getValue()
       const isInitial = info.row.original.tipo === 'Saldo Inicial'
-      const cls = v >= 0 ? 'text-emerald-400' : 'text-red-400'
-      return <span className={`font-medium tabular-nums block text-right ${isInitial ? 'font-bold' : ''} ${cls}`}>{formatCurrency(v)}</span>
+      const cls = v >= 0 ? 'text-emerald-700' : 'text-red-700'
+      return <span className={`font-black tabular-nums block text-right ${isInitial ? 'font-black' : ''} ${cls}`}>{formatCurrency(v)}</span>
     },
   }),
 ]
@@ -113,72 +110,43 @@ export default function FluxoCaixa() {
     if (!apData || !recData || !saldoData) return []
     const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
     const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
-    
-    // Convert old single selections to handles on the arrays
-    // FluxoCaixa supports filtering but note that `saidas` / `entradas` might have specific visibility rules
     const emps = filters.empresas
     const obs = filters.obras
     const visList = filters.vis
-
     const hasRealizado = visList.includes('realizado') || visList.includes('todos') || visList.length === 0
     const hasProjetado = visList.includes('projetado') || visList.includes('todos') || visList.length === 0
 
-    // Filter saidas (AP)
     const saidas = apData.filter((r) => {
-      if (d1 || d2) {
-        const rd = parseDate(r.data)
-        if (!rd) return false
-        if (d1 && rd < d1) return false
-        if (d2 && rd > d2) return false
-      }
+      if (d1 || d2) { const rd = parseDate(r.data); if (!rd) return false; if (d1 && rd < d1) return false; if (d2 && rd > d2) return false }
       if (emps.length > 0 && !emps.includes(r.empresa)) return false
       if (obs.length > 0 && !obs.includes(r.obra)) return false
       if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
       if (filters.contas.length > 0 && !filters.contas.includes(r.conta)) return false
-      
       const isRealizado = r.origem === 'Pago'
       if (isRealizado && !hasRealizado) return false
       if (!isRealizado && !hasProjetado) return false
       return true
     })
 
-    // Filter entradas (Receitas)
     const entradas = recData.filter((r) => {
-      if (d1 || d2) {
-        const rd = parseDate(r.data)
-        if (!rd) return false
-        if (d1 && rd < d1) return false
-        if (d2 && rd > d2) return false
-      }
+      if (d1 || d2) { const rd = parseDate(r.data); if (!rd) return false; if (d1 && rd < d1) return false; if (d2 && rd > d2) return false }
       if (emps.length > 0 && !emps.includes(r.empresa)) return false
       if (obs.length > 0 && !obs.includes(r.obra)) return false
       if (filters.bancos.length > 0 && r.banco && !filters.bancos.includes(r.banco)) return false
       if (filters.contas.length > 0 && r.conta && !filters.contas.includes(r.conta)) return false
-      
       const isRealizado = r.status === 'Recebida'
       if (isRealizado && !hasRealizado) return false
       if (!isRealizado && !hasProjetado) return false
       return true
     })
 
-    // Aggregate by date
     const byDate: Record<string, { e: number; s: number }> = {}
-    entradas.forEach((r) => {
-      if (!byDate[r.data]) byDate[r.data] = { e: 0, s: 0 }
-      byDate[r.data].e += r.valor
-    })
-    saidas.forEach((r) => {
-      if (!byDate[r.data]) byDate[r.data] = { e: 0, s: 0 }
-      byDate[r.data].s += r.valor
-    })
-
+    entradas.forEach((r) => { if (!byDate[r.data]) byDate[r.data] = { e: 0, s: 0 }; byDate[r.data].e += r.valor })
+    saidas.forEach((r) => { if (!byDate[r.data]) byDate[r.data] = { e: 0, s: 0 }; byDate[r.data].s += r.valor })
     const sortedDates = Object.keys(byDate).sort(compareDates)
 
-    // Build saldo bancário timelines first so we can derive saldoPrimeiroDia
-    // Para empresas com saldo manual ativado, substitui registros do BD pelos sintéticos
     const SYNTHETIC_DATE = '01/01/1900'
     const saldoEfetivo = [
-      // Registros do BD, excluindo empresas com saldo manual ativo
       ...saldoData.filter((r) => {
         if (emps.length > 0 && !emps.includes(r.empresa)) return false
         if (filters.bancos.length > 0 && !filters.bancos.includes(r.banco)) return false
@@ -186,7 +154,6 @@ export default function FluxoCaixa() {
         if (empresaConfigs[r.empresa]?.enabled) return false
         return true
       }),
-      // Registros sintéticos para empresas com saldo manual ativo
       ...Object.entries(empresaConfigs).flatMap(([empresa, cfg]) => {
         if (!cfg.enabled) return []
         if (emps.length > 0 && !emps.includes(empresa)) return []
@@ -227,7 +194,6 @@ export default function FluxoCaixa() {
       return hasAny ? total : null
     }
 
-    // Saldo bancário no dia anterior ao primeiro dia do período
     let saldoPrimeiroDia: number | null = null
     if (sortedDates.length > 0) {
       const firstDate = parseDate(sortedDates[0])
@@ -246,19 +212,14 @@ export default function FluxoCaixa() {
       }
     }
 
-    // Acumulado começa pelo saldo bancário do dia anterior (inclui dias futuros projetados)
     let acumulado = saldoPrimeiroDia ?? 0
     let dias = sortedDates.map((data) => {
       const saldo_dia = byDate[data].e - byDate[data].s
       acumulado += saldo_dia
       return { data, entradas: byDate[data].e, saidas: byDate[data].s, saldo_dia, acumulado, saldo_banco: null as number | null, saldo_anterior: null as number | null }
     })
-
-    // Compute saldo_banco for each day
     dias = dias.map((d) => ({ ...d, saldo_banco: computeSaldoBanco(parseDate(d.data)!) }))
-    // Compute saldo_anterior
     dias = dias.map((d, i) => ({ ...d, saldo_anterior: i > 0 ? dias[i - 1].saldo_banco : saldoPrimeiroDia }))
-
     return dias
   }, [apData, recData, saldoData, filters, empresaConfigs])
 
@@ -313,37 +274,11 @@ export default function FluxoCaixa() {
     }
 
     const transactions: Txn[] = []
-
     filteredEntradas.forEach((r) => {
-      transactions.push({
-        sortKey: 0,
-        data: r.data,
-        tipo: 'Entrada',
-        descricao: r.cliente || 'N/A',
-        obra: r.obra || 'N/A',
-        empresa: r.empresa,
-        entrada: r.valor,
-        saida: null,
-        origem: r.status,
-        banco: r.banco,
-        conta: r.conta,
-      })
+      transactions.push({ sortKey: 0, data: r.data, tipo: 'Entrada', descricao: r.cliente || 'N/A', obra: r.obra || 'N/A', empresa: r.empresa, entrada: r.valor, saida: null, origem: r.status, banco: r.banco, conta: r.conta })
     })
-
     filteredSaidas.forEach((r) => {
-      transactions.push({
-        sortKey: 1,
-        data: r.data,
-        tipo: 'Saída',
-        descricao: r.fornecedor || 'N/A',
-        obra: r.obra || 'N/A',
-        empresa: r.empresa,
-        entrada: null,
-        saida: r.valor,
-        origem: r.origem,
-        banco: r.banco,
-        conta: r.conta,
-      })
+      transactions.push({ sortKey: 1, data: r.data, tipo: 'Saída', descricao: r.fornecedor || 'N/A', obra: r.obra || 'N/A', empresa: r.empresa, entrada: null, saida: r.valor, origem: r.origem, banco: r.banco, conta: r.conta })
     })
 
     transactions.sort((a, b) => {
@@ -359,42 +294,19 @@ export default function FluxoCaixa() {
 
     let runningSaldo = saldoInicial
     const result: ExtratoRow[] = [{
-      id: 'saldo-inicial',
-      data: diasData[0].data,
-      tipo: 'Saldo Inicial',
-      descricao: 'Saldo Inicial',
-      obra: '—',
-      empresa: '—',
-      entrada: null,
-      saida: null,
-      saldo: runningSaldo,
-      origem: '—',
-      banco: '—',
-      conta: '—',
+      id: 'saldo-inicial', data: diasData[0].data, tipo: 'Saldo Inicial', descricao: 'Saldo Inicial',
+      obra: '—', empresa: '—', entrada: null, saida: null, saldo: runningSaldo, origem: '—', banco: '—', conta: '—',
     }]
 
     transactions.forEach((t, i) => {
-      if (t.tipo === 'Entrada') {
-        runningSaldo += (t.entrada ?? 0)
-      } else {
-        runningSaldo -= (t.saida ?? 0)
-      }
+      if (t.tipo === 'Entrada') runningSaldo += (t.entrada ?? 0)
+      else runningSaldo -= (t.saida ?? 0)
       result.push({
-        id: `${t.tipo === 'Entrada' ? 'e' : 's'}-${i}`,
-        data: t.data,
-        tipo: t.tipo,
-        descricao: t.descricao,
-        obra: t.obra,
-        empresa: t.empresa,
-        entrada: t.entrada,
-        saida: t.saida,
-        saldo: runningSaldo,
-        origem: t.origem,
-        banco: t.banco,
-        conta: t.conta,
+        id: `${t.tipo === 'Entrada' ? 'e' : 's'}-${i}`, data: t.data, tipo: t.tipo, descricao: t.descricao,
+        obra: t.obra, empresa: t.empresa, entrada: t.entrada, saida: t.saida, saldo: runningSaldo,
+        origem: t.origem, banco: t.banco, conta: t.conta,
       })
     })
-
     return result
   }, [apData, recData, saldoData, filters, empresaConfigs, diasData])
 
@@ -441,9 +353,7 @@ export default function FluxoCaixa() {
   const necessidadeAporte = useMemo(() => {
     let acumAnterior = 0
     return diasData.map((d, i) => {
-      const disponivel = i === 0
-        ? Math.max(d.saldo_banco ?? 0, 0)
-        : Math.max(acumAnterior, 0)
+      const disponivel = i === 0 ? Math.max(d.saldo_banco ?? 0, 0) : Math.max(acumAnterior, 0)
       const necessidade = d.saidas - d.entradas - disponivel
       acumAnterior = d.acumulado
       return necessidade > 0 ? -necessidade : null
@@ -459,7 +369,6 @@ export default function FluxoCaixa() {
     const hasRealizado = filters.vis.includes('realizado') || filters.vis.includes('todos') || filters.vis.length === 0
     const hasProjetado = filters.vis.includes('projetado') || filters.vis.includes('todos') || filters.vis.length === 0
 
-    // obra -> date -> value
     const entradasByObra: Record<string, Record<string, number>> = {}
     const saidasByObra: Record<string, Record<string, number>> = {}
 
@@ -506,7 +415,6 @@ export default function FluxoCaixa() {
       if (others > 0) result.push(['Outros', others])
       return result.map(([name, value], i) => ({ name: name || 'N/A', value, color: CHART_COLORS[i % CHART_COLORS.length] }))
     }
-
     const d1 = filters.dtInicio ? new Date(filters.dtInicio + 'T00:00:00') : null
     const d2 = filters.dtFim ? new Date(filters.dtFim + 'T23:59:59') : null
     const hasRealizado = filters.vis.includes('realizado') || filters.vis.includes('todos') || filters.vis.length === 0
@@ -557,21 +465,11 @@ export default function FluxoCaixa() {
     const periodoLabel = filters.dtInicio && filters.dtFim
       ? (() => { const [y1, m1, d1] = filters.dtInicio!.split('-'); const [y2, m2, d2] = filters.dtFim!.split('-'); return `${d1}/${m1}/${y1} a ${d2}/${m2}/${y2}` })()
       : diasData.length > 0 ? `${diasData[0].data} a ${diasData[diasData.length - 1].data}` : ''
-    return {
-      rows: extratoData.map((r) => ({ ...r })),
-      empresaLabel,
-      periodoLabel,
-    }
+    return { rows: extratoData.map((r) => ({ ...r })), empresaLabel, periodoLabel }
   }
 
-  const handleExtratoPDF = () => {
-    const { rows, empresaLabel, periodoLabel } = extratoExportData()
-    exportExtratoPDF(rows, empresaLabel, periodoLabel)
-  }
-  const handleExtratoXLSX = () => {
-    const { rows, empresaLabel, periodoLabel } = extratoExportData()
-    exportExtratoXLSX(rows, empresaLabel, periodoLabel)
-  }
+  const handleExtratoPDF = () => { const { rows, empresaLabel, periodoLabel } = extratoExportData(); exportExtratoPDF(rows, empresaLabel, periodoLabel) }
+  const handleExtratoXLSX = () => { const { rows, empresaLabel, periodoLabel } = extratoExportData(); exportExtratoXLSX(rows, empresaLabel, periodoLabel) }
 
   const buildPivotExportData = () => {
     const empresaLabel = filters.empresas.length > 0 ? filters.empresas.join(', ') : 'Todas as Empresas'
@@ -580,15 +478,9 @@ export default function FluxoCaixa() {
       ? `${fmtIso(filters.dtInicio)} a ${fmtIso(filters.dtFim)}`
       : diasData.length > 0 ? `${diasData[0].data} a ${diasData[diasData.length - 1].data}` : ''
     return {
-      diasData,
-      entradasByObra: obrasBreakdown.entradasByObra,
-      saidasByObra: obrasBreakdown.saidasByObra,
-      obrasEntrada: obrasBreakdown.obrasEntrada,
-      obrasSaida: obrasBreakdown.obrasSaida,
-      necessidadeAporte,
-      empresaLabel,
-      periodoLabel,
-      saldoBancario: diasData[0]?.saldo_anterior ?? null,
+      diasData, entradasByObra: obrasBreakdown.entradasByObra, saidasByObra: obrasBreakdown.saidasByObra,
+      obrasEntrada: obrasBreakdown.obrasEntrada, obrasSaida: obrasBreakdown.obrasSaida,
+      necessidadeAporte, empresaLabel, periodoLabel, saldoBancario: diasData[0]?.saldo_anterior ?? null,
     }
   }
 
@@ -599,10 +491,13 @@ export default function FluxoCaixa() {
     return (
       <div className="flex h-full">
         <FilterSidebar showVis />
-        <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 flex-1 overflow-auto">
-          <Skeleton className="h-14 w-full rounded-xl" />
-          <div className="grid grid-cols-4 gap-4">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
-          <Skeleton className="h-96 rounded-xl" />
+        <div className="p-8 overflow-auto flex-1 space-y-8">
+          <div className="h-44 bg-white block-border animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-8 h-80 bg-white block-border animate-pulse" />
+            <div className="lg:col-span-4 h-80 bg-white block-border animate-pulse" />
+          </div>
+          <div className="h-96 bg-white block-border animate-pulse" />
         </div>
       </div>
     )
@@ -611,193 +506,230 @@ export default function FluxoCaixa() {
   return (
     <div className="flex h-full">
       <FilterSidebar showVis />
-      
-      <div className="px-3 sm:px-6 pt-4 pb-6 space-y-4 overflow-auto flex-1">
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Entradas</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-emerald-400">{formatCompact(kpis.totalEntradas)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Total Saídas</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-red-400">{formatCompact(kpis.totalSaidas)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Saldo do Período</CardTitle></CardHeader>
-            <CardContent><div className={`text-2xl font-bold ${kpis.saldo >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCompact(kpis.saldo)}</div></CardContent></Card>
-          <Card className="rounded-xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">Dias Positivos</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{kpis.diasPositivos} <span className="text-sm font-normal text-muted-foreground">/ {kpis.totalDias}</span></div></CardContent></Card>
-        </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-          <Card className="lg:col-span-2 rounded-xl shadow-sm flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium">Fluxo de Caixa {chartMode === 'diario' ? 'Diário' : 'Mensal'}</CardTitle>
-              <div className="flex gap-1">
-                <Button variant={chartMode === 'diario' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setChartMode('diario')}>Diário</Button>
-                <Button variant={chartMode === 'mensal' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setChartMode('mensal')}>Mensal</Button>
+      <div className="p-8 overflow-auto flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+          {/* Hero KPI */}
+          <div className="lg:col-span-12 relative p-8 block-border shadow-hard bg-white flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+            <div className="absolute top-0 left-0 bg-brand text-dark text-xs font-black uppercase px-3 py-1 tracking-widest">
+              Fluxo de Caixa
+            </div>
+            <div className="mt-4">
+              <p className="text-sm font-bold text-gray-500 uppercase tracking-wide">
+                Saldo do Período <span className={`ml-2 ${kpis.saldo >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{kpis.diasPositivos} dias positivos</span>
+              </p>
+              <h2 className={`hero-metric mt-2 ${kpis.saldo >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {formatCompact(kpis.saldo)}
+              </h2>
+            </div>
+            <div className="flex flex-wrap md:flex-nowrap gap-4 w-full xl:w-auto">
+              <div className="bg-bgBase p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-gray-500 uppercase">Total Entradas</p>
+                <p className="text-2xl font-black mt-1 text-emerald-600">{formatCompact(kpis.totalEntradas)}</p>
               </div>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center">
+              <div className="bg-bgBase p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-gray-500 uppercase">Total Saídas</p>
+                <p className="text-2xl font-black mt-1 text-red-600">{formatCompact(kpis.totalSaidas)}</p>
+              </div>
+              <div className="bg-dark text-white p-4 block-border flex-1 xl:w-44">
+                <p className="text-xs font-bold text-brand uppercase">Dias Positivos</p>
+                <p className="text-2xl font-black mt-1 text-brand">
+                  {kpis.diasPositivos} <span className="text-sm font-bold text-white/60">/ {kpis.totalDias}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Chart: CashFlow */}
+          <div className="lg:col-span-8 bg-white block-border p-8 shadow-hard flex flex-col">
+            <div className="flex justify-between items-end mb-8">
+              <h3 className="text-lg font-black uppercase">
+                Fluxo de Caixa {chartMode === 'diario' ? 'Diário' : 'Mensal'}
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setChartMode('diario')}
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${chartMode === 'diario' ? 'bg-dark text-white' : 'border-2 border-dark text-dark hover:bg-bgBase'}`}
+                >
+                  Diário
+                </button>
+                <button
+                  onClick={() => setChartMode('mensal')}
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${chartMode === 'mensal' ? 'bg-dark text-white' : 'border-2 border-dark text-dark hover:bg-bgBase'}`}
+                >
+                  Mensal
+                </button>
+              </div>
+            </div>
+            <div className="flex-1">
               <CashFlowChart data={chartMode === 'diario' ? chartData : chartDataMensal} height={350} />
-            </CardContent>
-          </Card>
-          <Card className="rounded-xl shadow-sm flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium">{donutMode === 'entradas' ? 'Entradas' : 'Saídas'} por Obra</CardTitle>
-              <div className="flex gap-1">
-                <Button variant={donutMode === 'entradas' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setDonutMode('entradas')}>Entradas</Button>
-                <Button variant={donutMode === 'saidas' ? 'default' : 'outline'} size="sm" className="rounded-lg h-7 text-xs px-3" onClick={() => setDonutMode('saidas')}>Saídas</Button>
+            </div>
+          </div>
+
+          {/* Chart: Donut por Obra */}
+          <div className="lg:col-span-4 bg-white block-border p-8 shadow-hard flex flex-col">
+            <div className="flex justify-between items-end mb-8">
+              <h3 className="text-lg font-black uppercase">
+                {donutMode === 'entradas' ? 'Entradas' : 'Saídas'} por Obra
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDonutMode('entradas')}
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${donutMode === 'entradas' ? 'bg-dark text-white' : 'border-2 border-dark text-dark hover:bg-bgBase'}`}
+                >
+                  Entradas
+                </button>
+                <button
+                  onClick={() => setDonutMode('saidas')}
+                  className={`px-3 py-1 text-xs font-black uppercase transition-colors ${donutMode === 'saidas' ? 'bg-dark text-white' : 'border-2 border-dark text-dark hover:bg-bgBase'}`}
+                >
+                  Saídas
+                </button>
               </div>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col justify-center">
+            </div>
+            <div className="flex-1 flex flex-col justify-center">
               <DonutChart
                 data={donutMode === 'entradas' ? obrasData : obrasSaidaData}
                 centerLabel={donutMode === 'entradas' ? 'Entradas' : 'Saídas'}
                 centerValue={formatCompact(donutMode === 'entradas' ? totalRecebimento : totalSaidasObra)}
                 height={220}
               />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Extrato de Movimentação Financeira */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">EXTRATO DE MOVIMENTAÇÃO FINANCEIRA</CardTitle>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={handleExtratoXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
-              <Button variant="outline" size="sm" onClick={handleExtratoPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+
+          {/* Extrato */}
+          <div className="lg:col-span-12 bg-white block-border p-8 shadow-hard">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+              <h3 className="text-lg font-black uppercase">Extrato de Movimentação Financeira</h3>
+              <div className="flex gap-3">
+                <button onClick={handleExtratoXLSX} className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors">
+                  <Sheet className="h-4 w-4" />XLSX
+                </button>
+                <button onClick={handleExtratoPDF} className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors">
+                  <FileText className="h-4 w-4" />PDF
+                </button>
+              </div>
+            </div>
             <DataTable
               data={extratoData}
               columns={extratoCols as ColumnDef<ExtratoRow, unknown>[]}
               searchPlaceholder="Buscar descrição, obra, fornecedor..."
               pageSize={50}
               footerRow={
-                <tr className="border-t-2 border-border bg-muted/50 font-semibold">
-                  <td colSpan={5} className="px-4 py-3 text-right text-muted-foreground">Total</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-emerald-400">{formatCurrency(extratoTotals.entrada)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-red-400">{formatCurrency(extratoTotals.saida)}</td>
+                <tr className="border-t-2 border-dark bg-bgBase font-black">
+                  <td colSpan={5} className="px-4 py-3 text-right text-xs font-black uppercase text-gray-500">Total</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-emerald-700 font-black">{formatCurrency(extratoTotals.entrada)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-red-700 font-black">{formatCurrency(extratoTotals.saida)}</td>
                   <td></td>
                 </tr>
               }
             />
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Pivot table */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium">Fluxo de Caixa por Dia</CardTitle>
-            <div className="flex gap-1">
-              <Button variant="outline" size="sm" onClick={handleExportXLSX} className="rounded-lg h-7 text-xs px-3"><Sheet className="h-3.5 w-3.5 mr-1.5" />XLSX</Button>
-              <Button variant="outline" size="sm" onClick={handleExportPDF} className="rounded-lg h-7 text-xs px-3"><FileText className="h-3.5 w-3.5 mr-1.5" />PDF</Button>
+          {/* Pivot Table */}
+          <div className="lg:col-span-12 bg-white block-border p-8 shadow-hard">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+              <h3 className="text-lg font-black uppercase">Fluxo de Caixa por Dia</h3>
+              <div className="flex gap-3">
+                <button onClick={handleExportXLSX} className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors">
+                  <Sheet className="h-4 w-4" />XLSX
+                </button>
+                <button onClick={handleExportPDF} className="flex items-center gap-2 bg-dark text-white font-black uppercase text-xs px-4 py-2 border-2 border-dark hover:bg-brand hover:text-dark transition-colors">
+                  <FileText className="h-4 w-4" />PDF
+                </button>
+              </div>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto block-border">
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="sticky left-0 bg-card z-10 text-left px-4 py-2 font-medium text-muted-foreground min-w-[160px]">Rótulos de Linha</th>
+                  <tr className="border-b-2 border-dark bg-bgBase">
+                    <th className="sticky left-0 bg-bgBase z-10 text-left px-4 py-3 font-black uppercase text-dark min-w-[160px] border-b-2 border-dark">Rótulos de Linha</th>
                     {diasData.map((d) => (
-                      <th key={d.data} className="text-right px-3 py-2 font-medium text-muted-foreground whitespace-nowrap min-w-[100px]">{d.data}</th>
+                      <th key={d.data} className="text-right px-3 py-3 font-black uppercase text-dark whitespace-nowrap min-w-[100px] border-b-2 border-dark">{d.data}</th>
                     ))}
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground whitespace-nowrap min-w-[110px]">Total Geral</th>
+                    <th className="text-right px-3 py-3 font-black uppercase text-dark whitespace-nowrap min-w-[110px] border-b-2 border-dark">Total Geral</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Entrada — total */}
-                  <tr className="border-b border-border/50 bg-emerald-950/20">
-                    <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{background: 'color-mix(in srgb, hsl(var(--card)) 85%, #065f46 15%)'}}>— Entrada</td>
+                  <tr className="border-b border-grid bg-emerald-50">
+                    <td className="sticky left-0 z-10 px-4 py-2 font-black bg-emerald-50">— Entrada</td>
                     {diasData.map((d) => (
-                      <td key={d.data} className="text-right px-3 py-2 tabular-nums font-semibold text-emerald-400">
-                        {d.entradas > 0 ? formatCurrency(d.entradas) : <span className="text-muted-foreground/40">-</span>}
+                      <td key={d.data} className="text-right px-3 py-2 tabular-nums font-black text-emerald-700">
+                        {d.entradas > 0 ? formatCurrency(d.entradas) : <span className="text-grid">-</span>}
                       </td>
                     ))}
-                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-emerald-400">
+                    <td className="text-right px-3 py-2 tabular-nums font-black text-emerald-700">
                       {formatCurrency(diasData.reduce((s, d) => s + d.entradas, 0))}
                     </td>
                   </tr>
-                  {/* Entrada — por obra */}
                   {obrasBreakdown.obrasEntrada.map((obra) => {
                     const byDate = obrasBreakdown.entradasByObra[obra]
                     const total = Object.values(byDate).reduce((s: number, v) => s + v, 0)
                     return (
-                      <tr key={`e-${obra}`} className="border-b border-border/30">
-                        <td className="sticky left-0 z-10 px-4 py-1.5 pl-8 text-muted-foreground" style={{background: 'hsl(var(--card))'}}>
-                          {obra}
-                        </td>
+                      <tr key={`e-${obra}`} className="border-b border-grid">
+                        <td className="sticky left-0 z-10 px-4 py-1.5 pl-8 text-muted-foreground bg-white">{obra}</td>
                         {diasData.map((d) => (
-                          <td key={d.data} className="text-right px-3 py-1.5 tabular-nums text-emerald-400/80">
-                            {byDate[d.data] ? formatCurrency(byDate[d.data]) : <span className="text-muted-foreground/30">-</span>}
+                          <td key={d.data} className="text-right px-3 py-1.5 tabular-nums text-emerald-600">
+                            {byDate[d.data] ? formatCurrency(byDate[d.data]) : <span className="text-grid">-</span>}
                           </td>
                         ))}
-                        <td className="text-right px-3 py-1.5 tabular-nums text-emerald-400/80 font-medium">
-                          {formatCurrency(total)}
-                        </td>
+                        <td className="text-right px-3 py-1.5 tabular-nums text-emerald-600 font-bold">{formatCurrency(total)}</td>
                       </tr>
                     )
                   })}
-                  {/* Saída — total */}
-                  <tr className="border-b border-border/50 bg-red-950/20">
-                    <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{background: 'color-mix(in srgb, hsl(var(--card)) 85%, #7f1d1d 15%)'}}>— Saída</td>
+                  <tr className="border-b border-grid bg-red-50">
+                    <td className="sticky left-0 z-10 px-4 py-2 font-black bg-red-50">— Saída</td>
                     {diasData.map((d) => (
-                      <td key={d.data} className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
-                        {d.saidas > 0 ? formatCurrency(d.saidas) : <span className="text-muted-foreground/40">-</span>}
+                      <td key={d.data} className="text-right px-3 py-2 tabular-nums font-black text-red-700">
+                        {d.saidas > 0 ? formatCurrency(d.saidas) : <span className="text-grid">-</span>}
                       </td>
                     ))}
-                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
+                    <td className="text-right px-3 py-2 tabular-nums font-black text-red-700">
                       {formatCurrency(diasData.reduce((s, d) => s + d.saidas, 0))}
                     </td>
                   </tr>
-                  {/* Saída — por obra */}
                   {obrasBreakdown.obrasSaida.map((obra) => {
                     const byDate = obrasBreakdown.saidasByObra[obra]
                     const total = Object.values(byDate).reduce((s: number, v) => s + v, 0)
                     return (
-                      <tr key={`s-${obra}`} className="border-b border-border/30">
-                        <td className="sticky left-0 z-10 px-4 py-1.5 pl-8 text-muted-foreground" style={{background: 'hsl(var(--card))'}}>
-                          {obra}
-                        </td>
+                      <tr key={`s-${obra}`} className="border-b border-grid">
+                        <td className="sticky left-0 z-10 px-4 py-1.5 pl-8 text-muted-foreground bg-white">{obra}</td>
                         {diasData.map((d) => (
-                          <td key={d.data} className="text-right px-3 py-1.5 tabular-nums text-red-400/80">
-                            {byDate[d.data] ? formatCurrency(byDate[d.data]) : <span className="text-muted-foreground/30">-</span>}
+                          <td key={d.data} className="text-right px-3 py-1.5 tabular-nums text-red-600">
+                            {byDate[d.data] ? formatCurrency(byDate[d.data]) : <span className="text-grid">-</span>}
                           </td>
                         ))}
-                        <td className="text-right px-3 py-1.5 tabular-nums text-red-400/80 font-medium">
-                          {formatCurrency(total)}
-                        </td>
+                        <td className="text-right px-3 py-1.5 tabular-nums text-red-600 font-bold">{formatCurrency(total)}</td>
                       </tr>
                     )
                   })}
-                  {/* Saldo Acumulado */}
-                  <tr className="border-b border-border/50">
-                    <td className="sticky left-0 bg-card z-10 px-4 py-2 font-semibold" style={{background: 'hsl(var(--card))'}}>Saldo Acumulado</td>
+                  <tr className="border-b border-grid">
+                    <td className="sticky left-0 bg-white z-10 px-4 py-2 font-black">Saldo Acumulado</td>
                     {diasData.map((d) => (
-                      <td key={d.data} className={`text-right px-3 py-2 tabular-nums font-semibold ${d.acumulado >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      <td key={d.data} className={`text-right px-3 py-2 tabular-nums font-black ${d.acumulado >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
                         {formatCurrency(d.acumulado)}
                       </td>
                     ))}
-                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-muted-foreground">-</td>
+                    <td className="text-right px-3 py-2 tabular-nums font-black text-muted-foreground">-</td>
                   </tr>
-                  {/* Necessidade de Aporte */}
-                  <tr className="bg-orange-950/20">
-                    <td className="sticky left-0 z-10 px-4 py-2 font-semibold" style={{background: 'color-mix(in srgb, hsl(var(--card)) 85%, #431407 15%)'}}>Necessidade de Aporte</td>
+                  <tr className="bg-orange-50">
+                    <td className="sticky left-0 z-10 px-4 py-2 font-black bg-orange-50">Necessidade de Aporte</td>
                     {necessidadeAporte.map((v, i) => (
-                      <td key={diasData[i].data} className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
-                        {v !== null ? formatCurrency(v) : <span className="text-muted-foreground/40">-</span>}
+                      <td key={diasData[i].data} className="text-right px-3 py-2 tabular-nums font-black text-red-700">
+                        {v !== null ? formatCurrency(v) : <span className="text-grid">-</span>}
                       </td>
                     ))}
-                    <td className="text-right px-3 py-2 tabular-nums font-semibold text-red-400">
-                      {(() => { const t = necessidadeAporte.reduce((s: number, v) => s + (v ?? 0), 0); return t !== 0 ? formatCurrency(t) : <span className="text-muted-foreground/40">-</span> })()}
+                    <td className="text-right px-3 py-2 tabular-nums font-black text-red-700">
+                      {(() => { const t = necessidadeAporte.reduce((s: number, v) => s + (v ?? 0), 0); return t !== 0 ? formatCurrency(t) : <span className="text-grid">-</span> })()}
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+        </div>
       </div>
     </div>
   )

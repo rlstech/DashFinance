@@ -2,42 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
 
 @layer base {
   :root {
-/* Combrasen Branding: Azul Noturno (#0D1B2A), Orange (#F25B2A), White (#F8F9FA) */
-    --background: 211 53% 11%;
-    --foreground: 210 20% 98%;
-    --card: 191 100% 8%;
-    --card-foreground: 210 20% 98%;
-    --popover: 191 100% 8%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 15 88% 56%;
+    --background: 210 40% 96%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 25 96% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 191 50% 15%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 191 50% 15%;
-    --muted-foreground: 191 20% 65%;
-    --accent: 15 88% 56%;
-    --accent-foreground: 0 0% 100%;
+    --secondary: 210 40% 92%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 92%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 92%;
+    --accent-foreground: 222 47% 11%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 191 50% 15%;
-    --input: 191 50% 15%;
-    --ring: 15 88% 56%;
-    --radius: 0.75rem;
+    --destructive-foreground: 0 0% 100%;
+    --border: 213 31% 91%;
+    --input: 213 31% 91%;
+    --ring: 25 96% 53%;
+    --radius: 0rem;
 
-    /* Chart colors following branding */
-    --chart-receita: #F25B2A;
+    --chart-receita: #F97316;
     --chart-despesa: #ef4444;
-    --chart-saldo: #ffffff;
+    --chart-saldo: #0F172A;
     --chart-previsto: #94a3b8;
-    --chart-a-confirmar: #52b788;
-    --chart-emissao: #F25B2A;
-    --chart-pago: #ef4444;
-    --chart-recebida: #F25B2A;
-    --chart-a-receber: #ffffff;
+    --chart-a-confirmar: #0F172A;
+    --chart-emissao: #CBD5E1;
+    --chart-pago: #F97316;
+    --chart-recebida: #065f46;
+    --chart-a-receber: #f59e0b;
   }
 
   * {
@@ -49,5 +47,30 @@
     color: hsl(var(--foreground));
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     margin: 0;
+  }
+}
+
+@layer components {
+  .block-border {
+    border: 2px solid #0F172A;
+  }
+
+  .block-border-b {
+    border-bottom: 2px solid #0F172A;
+  }
+
+  .block-border-r {
+    border-right: 2px solid #0F172A;
+  }
+
+  .shadow-hard {
+    box-shadow: 8px 8px 0px 0px rgba(15, 23, 42, 1);
+  }
+
+  .hero-metric {
+    font-size: clamp(2rem, 3vw, 3.5rem);
+    letter-spacing: -0.05em;
+    font-weight: 900;
+    line-height: 1;
   }
 }

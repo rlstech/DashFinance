@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { Button } from '@/components/ui/button'
 
 type Preset = 'hoje' | '7dias' | 'quinzenal' | 'mes' | 'bimestre' | 'trimestre' | 'semestre' | 'ano'
 
@@ -75,40 +74,42 @@ export function DateRangeSelector({
   ]
 
   return (
-    <div className="flex flex-col gap-3">
-      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Período</span>
+    <div className="flex flex-col gap-3 block-border-b pb-5">
+      <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Período</span>
 
       <div className="grid grid-cols-2 gap-1">
         {presets.map(({ key, label }) => (
-          <Button
+          <button
             key={key}
-            variant={activePreset === key ? 'default' : 'outline'}
-            size="sm"
-            className="h-7 text-[10px] px-1 rounded-md"
             onClick={() => handlePreset(key)}
+            className={`h-7 text-[10px] font-black uppercase tracking-wide px-1 border-2 transition-colors ${
+              activePreset === key
+                ? 'bg-dark text-white border-dark'
+                : 'bg-white text-dark border-dark hover:bg-bgBase'
+            }`}
           >
             {label}
-          </Button>
+          </button>
         ))}
       </div>
 
       <div className="flex items-center gap-2">
         <div className="flex flex-col flex-1 gap-1">
-          <span className="text-[10px] text-muted-foreground ml-1">De</span>
+          <span className="text-[10px] text-muted-foreground font-black uppercase">De</span>
           <input
             type="date"
-            style={{ colorScheme: 'dark' }}
-            className="w-full h-9 px-2 rounded-lg border bg-background text-xs text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
+            style={{ colorScheme: 'light' }}
+            className="w-full h-8 px-2 border-2 border-dark bg-white text-xs text-dark font-bold focus:outline-none focus:border-brand"
             value={startDate}
             onChange={(e) => onStartDateChange(e.target.value)}
           />
         </div>
         <div className="flex flex-col flex-1 gap-1">
-          <span className="text-[10px] text-muted-foreground ml-1">Até</span>
+          <span className="text-[10px] text-muted-foreground font-black uppercase">Até</span>
           <input
             type="date"
-            style={{ colorScheme: 'dark' }}
-            className="w-full h-9 px-2 rounded-lg border bg-background text-xs text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
+            style={{ colorScheme: 'light' }}
+            className="w-full h-8 px-2 border-2 border-dark bg-white text-xs text-dark font-bold focus:outline-none focus:border-brand"
             value={endDate}
             onChange={(e) => onEndDateChange(e.target.value)}
           />
