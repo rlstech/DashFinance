@@ -88,16 +88,17 @@ export default function ContasAPagar() {
   const [chartMode, setChartMode] = useState<'daily' | 'monthly'>('daily')
 
   const timelineData = useMemo(() => {
-    const map = new Map<string, { emissao: number; a_confirmar: number }>()
+    const map = new Map<string, { emissao: number; a_confirmar: number; pago: number }>()
     filteredData.forEach((r) => {
       const d = parseDate(r.data)
       if (!d) return
       const key = chartMode === 'daily'
         ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
         : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      const entry = map.get(key) ?? { emissao: 0, a_confirmar: 0 }
+      const entry = map.get(key) ?? { emissao: 0, a_confirmar: 0, pago: 0 }
       if (r.origem === 'Emissao') entry.emissao += r.valor
       else if (r.origem === 'A Confirmar') entry.a_confirmar += r.valor
+      else if (r.origem === 'Pago') entry.pago += r.valor
       map.set(key, entry)
     })
     return Array.from(map.entries())
@@ -105,10 +106,10 @@ export default function ContasAPagar() {
       .map(([key, val]) => {
         if (chartMode === 'daily') {
           const [, m, dd] = key.split('-')
-          return { label: `${dd}/${m}`, emissao: val.emissao, a_confirmar: val.a_confirmar }
+          return { label: `${dd}/${m}`, emissao: val.emissao, a_confirmar: val.a_confirmar, pago: val.pago }
         } else {
           const [y, m] = key.split('-')
-          return { label: `${m}/${y}`, emissao: val.emissao, a_confirmar: val.a_confirmar }
+          return { label: `${m}/${y}`, emissao: val.emissao, a_confirmar: val.a_confirmar, pago: val.pago }
         }
       })
   }, [filteredData, chartMode])
@@ -288,6 +289,7 @@ export default function ContasAPagar() {
                 bars={[
                   { key: 'emissao', color: '#CBD5E1', name: 'Emissão' },
                   { key: 'a_confirmar', color: '#0F172A', name: 'A Confirmar' },
+                  { key: 'pago', color: '#22c55e', name: 'Pago' },
                 ]}
                 height={320}
               />
