@@ -1,3 +1,4 @@
+import { NavLink } from 'react-router-dom'
 import { useFilterStore } from '@/hooks/useFilters'
 import { useFilterTree } from '@/hooks/useFinanceiro'
 import { MultiSelect } from './MultiSelect'
@@ -11,11 +12,24 @@ interface FilterSidebarProps {
   showVis?: boolean
 }
 
+const navItems = [
+  { to: '/receitas', label: 'Receitas' },
+  { to: '/despesas', label: 'Despesas' },
+  { to: '/fluxo', label: 'Fluxo de Caixa' },
+  { to: '/config', label: 'Configurações' },
+]
+
 export function FilterSidebar({ showOrigem, showStatus, showVis }: FilterSidebarProps) {
   const filters = useFilterStore()
   const sidebarOpen = useFilterStore((s) => s.sidebarOpen)
   const toggleSidebar = useFilterStore((s) => s.toggleSidebar)
   const { data: tree } = useFilterTree()
+
+  const handleNavClick = () => {
+    if (window.innerWidth < 1024) {
+      toggleSidebar()
+    }
+  }
 
   const empresas = tree?.empresas ?? []
 
@@ -63,6 +77,26 @@ export function FilterSidebar({ showOrigem, showStatus, showVis }: FilterSidebar
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
+      </div>
+
+      <div className="lg:hidden p-4 block-border-b space-y-2">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={handleNavClick}
+            className={({ isActive }) =>
+              cn(
+                'block text-sm font-black uppercase tracking-widest py-2 px-3 transition-colors',
+                isActive
+                  ? 'bg-dark text-white'
+                  : 'text-muted-foreground hover:bg-bgBase hover:text-dark'
+              )
+            }
+          >
+            {item.label}
+          </NavLink>
+        ))}
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-5">
