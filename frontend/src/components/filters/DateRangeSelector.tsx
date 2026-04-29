@@ -93,8 +93,8 @@ export function DateRangeSelector({
         ))}
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="flex flex-col flex-1 gap-1">
+      <div className="grid grid-cols-2 gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-[10px] text-muted-foreground font-black uppercase">De</span>
           <input
             type="date"
@@ -104,7 +104,7 @@ export function DateRangeSelector({
             onChange={(e) => onStartDateChange(e.target.value)}
           />
         </div>
-        <div className="flex flex-col flex-1 gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-[10px] text-muted-foreground font-black uppercase">Até</span>
           <input
             type="date"

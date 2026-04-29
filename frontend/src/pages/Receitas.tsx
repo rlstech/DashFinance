@@ -318,7 +318,7 @@ export default function Receitas() {
                   { key: 'recebida', color: '#065f46', name: 'Recebida' },
                   { key: 'a_receber', color: '#f59e0b', name: 'A Receber' },
                 ]}
-                height={320}
+                height={350}
               />
             </div>
           </div>

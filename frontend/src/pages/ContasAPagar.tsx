@@ -291,7 +291,7 @@ export default function ContasAPagar() {
                   { key: 'a_confirmar', color: '#0F172A', name: 'A Confirmar' },
                   { key: 'pago', color: '#22c55e', name: 'Pago' },
                 ]}
-                height={320}
+                height={350}
               />
             </div>
           </div>
